@@ -8,12 +8,12 @@ import torchvision.transforms as transforms
 from PIL import Image
 
 class LabDataset(data.Dataset):
-    def __init__(self, image_dir, label_dir, use_augmentation=False):
+    def __init__(self, image_dir, label_dir, transforms=None):
         self.image_dir = image_dir
         self.label_dir = label_dir
         self.images = list(sorted(os.listdir(image_dir)))
         self.labels = list(sorted(os.listdir(label_dir)))
-        self.use_augmentation = use_augmentation
+        self.transforms = transforms
 
     def __len__(self):
         return len(self.images)
@@ -28,6 +28,7 @@ class LabDataset(data.Dataset):
         image_width, image_height = image.size
         # This is in relative coordinate
         df = pd.read_csv(label_path, sep=" ", names=["label", "cx","cy","w","h"])
+        df["label"] += 1 # label 0 must be background
         df2 = df.copy(deep=True)
         df2.columns = ["label", "x1", "y1", "x2", "y2"]
         df2["x1"] = (df["cx"] - df["w"]/2.0)*image_width
@@ -36,11 +37,21 @@ class LabDataset(data.Dataset):
         df2["y2"] = (df["cy"] + df["h"]/2.0)*image_height
         boxes = df2[["x1", "y1", "x2", "y2"]].values.tolist()
         labels = df["label"].values.tolist()
+        area = (df["w"]*image_width*df["h"]*image_height).values.tolist()
 
+        image = transforms.functional.to_tensor(image)
         boxes = torch.as_tensor(boxes, dtype=torch.float32)
         labels = torch.as_tensor(labels, dtype=torch.int64)
-        breakpoint()
+        image_id = torch.tensor([idx])
+        area = torch.as_tensor(area)
 
         target = {}
-        target["labels"]
+        target["labels"] = labels
+        target["boxes"] = boxes
+        target["image_id"] = image_id
+        target["area"] = area
+
+        if self.transforms is not None:
+            image, target = self.transforms(image, target)
+
         return image, target
