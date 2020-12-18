@@ -8,12 +8,12 @@ import torchvision.transforms as transforms
 from PIL import Image
 
 class LabDataset(data.Dataset):
-    def __init__(self, image_dir, label_dir, transforms=None):
+    def __init__(self, image_dir, label_dir, transform=None):
         self.image_dir = image_dir
         self.label_dir = label_dir
         self.images = list(sorted(os.listdir(image_dir)))
         self.labels = list(sorted(os.listdir(label_dir)))
-        self.transforms = transforms
+        self.transform = transform
 
     def __len__(self):
         return len(self.images)
@@ -51,7 +51,7 @@ class LabDataset(data.Dataset):
         target["image_id"] = image_id
         target["area"] = area
 
-        if self.transforms is not None:
-            image, target = self.transforms(image, target)
+        if self.transform is not None:
+            image, target = self.transform(image, target) # Doesn't work with 2 entry
 
         return image, target
