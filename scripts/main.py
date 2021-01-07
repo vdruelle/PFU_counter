@@ -10,7 +10,7 @@ from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 from torch.utils.tensorboard import SummaryWriter
 
 from dataset import LabDataset
-from transforms import RandomHorizontalFlip
+from transforms import RandomHorizontalFlip, Compose, GaussianBlur
 
 
 def collate_fn(batch):
@@ -23,20 +23,21 @@ device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 image_dir = str(pathlib.Path.cwd()) + "/data/lab_raw_good"
 label_dir = str(pathlib.Path.cwd()) + "/data/lab_raw_good_labels"
 
-writer = SummaryWriter('runs/Run_with_augmentation')
+writer = SummaryWriter('runs/Run_without_augmentation')
 
 # Could add data augmentation here
-transform = RandomHorizontalFlip(0.5)
+transform = Compose([RandomHorizontalFlip(0.5), GaussianBlur(3)])
 dataset = LabDataset(image_dir, label_dir, transform=transform)
-# dataset = LabDataset(image_dir, label_dir, transform=None)
+dataset_test = LabDataset(image_dir, label_dir, transform=None)
 
 # split the dataset in train and test set
-train_set, test_set = torch.utils.data.random_split(dataset, [31, 5])
+# train_set, test_set = torch.utils.data.random_split(dataset, [31, 5])
+test_set = torch.utils.data.Subset(dataset_test, range(9,14))
 
 train_loader = torch.utils.data.DataLoader(
     dataset, batch_size=1, shuffle=True, num_workers=2, collate_fn=collate_fn)
 test_loader = torch.utils.data.DataLoader(
-    dataset, batch_size=1, shuffle=False, num_workers=2, collate_fn=collate_fn)
+    test_set, batch_size=1, shuffle=False, num_workers=2, collate_fn=collate_fn)
 
 # The model
 model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
@@ -53,9 +54,12 @@ lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=3, gamma=0.1
 
 
 num_epochs = 10
+n_iter = 0
 for epoch in range(num_epochs):
     # train for one epoch, printing every 10 iterations
     epoch_mean_loss = 0
+
+    # Train
     model.train()
     for ii, (images, targets) in enumerate(train_loader):
         images = list(image.to(device) for image in images)
@@ -65,10 +69,10 @@ for epoch in range(num_epochs):
         losses_sum = sum(loss for loss in losses_dict.values())
         loss = losses_sum.item()
 
-        n_iter = epoch*len(train_set) + ii
+        n_iter += 1
         for key in losses_dict.keys():
             writer.add_scalar("Losses/" + key, losses_dict[key], n_iter)
-        writer.add_scalar("Total loss", loss, n_iter)
+        writer.add_scalar("Total_loss/train", loss, n_iter)
 
         if not math.isfinite(loss):
             print("Loss is {}, stopping training".format(loss))
@@ -80,6 +84,20 @@ for epoch in range(num_epochs):
         optimizer.step()
 
         print(f"Epoch {epoch}: total loss {loss}")
+
+    # Test
+    with torch.no_grad():
+        test_loss = 0
+        for images, targets in test_loader:
+            images = list(image.to(device) for image in images)
+            targets = [{key: t[key].to(device) for key in t.keys()} for t in targets]
+
+            losses_dict = model(images, targets)
+            losses_sum = sum(loss for loss in losses_dict.values())
+            loss = losses_sum.item()
+            test_loss += loss
+        test_loss = test_loss / len(test_set)
+        writer.add_scalar("Total_loss/test", test_loss, (epoch+1)*len(dataset))
 
     # update the learning rate
     lr_scheduler.step()

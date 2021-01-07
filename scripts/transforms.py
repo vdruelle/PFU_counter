@@ -1,5 +1,6 @@
 import random
 import torch
+import torchvision
 
 from torchvision.transforms import functional as F
 
@@ -31,4 +32,14 @@ class RandomHorizontalFlip(object):
 class ToTensor(object):
     def __call__(self, image, target):
         image = F.to_tensor(image)
+        return image, target
+
+
+class GaussianBlur(object):
+    def __init__(self, kernel_size, sigma=(0.1, 2.0)):
+        self.kernel_size = kernel_size
+        self.sigma = sigma
+
+    def __call__(self, image, target):
+        image = torchvision.transforms.GaussianBlur(self.kernel_size, self.sigma).forward(image)
         return image, target

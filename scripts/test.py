@@ -11,7 +11,7 @@ from matplotlib.patches import Rectangle
 from matplotlib.collections import PatchCollection
 
 from dataset import LabDataset
-import transforms
+from transforms import RandomHorizontalFlip, Compose, GaussianBlur
 
 def collate_fn(batch):
     return tuple(zip(*batch))
@@ -34,8 +34,15 @@ device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 image_dir = str(pathlib.Path.cwd()) + "/data/lab_raw_good"
 label_dir = str(pathlib.Path.cwd()) + "/data/lab_raw_good_labels"
 
-transform = transforms.RandomHorizontalFlip(0.5)
+# Could add data augmentation here
+transform = Compose([RandomHorizontalFlip(0.5), GaussianBlur(3)])
 dataset = LabDataset(image_dir, label_dir, transform=transform)
+dataset_test = LabDataset(image_dir, label_dir, transform=None)
 
-data_loader = torch.utils.data.DataLoader(
-    dataset, batch_size=1, shuffle=True, num_workers=2, collate_fn=collate_fn)
+# split the dataset in train and test set
+# train_set, test_set = torch.utils.data.random_split(dataset, [31, 5])
+test_set = torch.utils.data.Subset(dataset_test, range(9,14))
+
+for image, target in test_set:
+    plot_image_target(image, target)
+plt.show()

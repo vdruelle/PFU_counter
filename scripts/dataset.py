@@ -52,6 +52,6 @@ class LabDataset(data.Dataset):
         target["area"] = area
 
         if self.transform is not None:
-            image, target = self.transform(image, target) # Doesn't work with 2 entry
+            image, target = self.transform(image, target)
 
         return image, target
