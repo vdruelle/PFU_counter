@@ -23,7 +23,7 @@ device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 image_dir = str(pathlib.Path.cwd()) + "/data/lab_raw_good"
 label_dir = str(pathlib.Path.cwd()) + "/data/lab_raw_good_labels"
 
-writer = SummaryWriter('runs/Run_without_augmentation')
+writer = SummaryWriter('runs/Run_with_augmentation_lessdecay')
 
 # Could add data augmentation here
 transform = Compose([RandomHorizontalFlip(0.5), GaussianBlur(3)])
@@ -35,9 +35,9 @@ dataset_test = LabDataset(image_dir, label_dir, transform=None)
 test_set = torch.utils.data.Subset(dataset_test, range(9,14))
 
 train_loader = torch.utils.data.DataLoader(
-    dataset, batch_size=1, shuffle=True, num_workers=2, collate_fn=collate_fn)
+    dataset, batch_size=1, shuffle=True, num_workers=4, collate_fn=collate_fn)
 test_loader = torch.utils.data.DataLoader(
-    test_set, batch_size=1, shuffle=False, num_workers=2, collate_fn=collate_fn)
+    test_set, batch_size=1, shuffle=False, num_workers=4, collate_fn=collate_fn)
 
 # The model
 model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
@@ -50,7 +50,7 @@ model.to(device)
 # Optimizer
 params = [p for p in model.parameters() if p.requires_grad]
 optimizer = torch.optim.SGD(params, lr=0.005, momentum=0.9, weight_decay=0.0005)
-lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=3, gamma=0.1)
+lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=3, gamma=0.5)
 
 
 num_epochs = 10

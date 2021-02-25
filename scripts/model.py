@@ -133,6 +133,7 @@ class UNet(nn.Module):
 
 def run_network(network: nn.Module, input_channels: int):
     """Generate a random image, run through network, and check output size."""
+    # The dimension here is arbitrary as long as it is divisable by 2 3 times
     sample = torch.ones((1, input_channels, 224, 224))
     result = network(input_filters=input_channels)(sample)
     assert result.shape == (1, 1, 224, 224)
@@ -148,11 +149,6 @@ def test_UNet_grayscale():
     run_network(UNet, 1)
 
 
-def test_FRCN_color():
-    """Test FCRN-A on RGB images."""
-    run_network(FCRN_A, 3)
-
-
-def test_FRCN_grayscale():
-    """Test FCRN-A on grayscale images."""
-    run_network(FCRN_A, 1)
+if __name__ == '__main__':
+    test_UNet_grayscale()
+    test_UNet_color()

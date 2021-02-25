@@ -37,6 +37,7 @@ class ToTensor(object):
 
 class GaussianBlur(object):
     def __init__(self, kernel_size, sigma=(0.1, 2.0)):
+        # Using a tuple for sigma range means it selects randomly values in this range
         self.kernel_size = kernel_size
         self.sigma = sigma
 
