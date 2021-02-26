@@ -9,20 +9,24 @@ from dataset import H5Dataset
 from utils import plot_image_dot
 from model import UNet
 from looper import Looper
+from transforms import Compose, CounterRandomHorizontalFlip, CounterRandomVerticalFlip
 
 
 CELL_DATA_FOLDER = "data/cells/"
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
+# It uses the transforms
+transform = Compose([CounterRandomHorizontalFlip(0.5), CounterRandomVerticalFlip(0.5)])
+
 cell_dataset = {}
 for phase in ["train", "valid"]:
-    cell_dataset[phase] = H5Dataset(CELL_DATA_FOLDER + phase + ".h5")
+    cell_dataset[phase] = H5Dataset(CELL_DATA_FOLDER + phase + ".h5", transform)
 
 dataloader = {}
 for phase in ["train", "valid"]:
     dataloader[phase] = torch.utils.data.DataLoader(cell_dataset[phase], batch_size=6, num_workers=6)
 
-writer = SummaryWriter('runs/test_cell_counter')
+writer = SummaryWriter('runs/cell_counter_augmentation')
 
 
 # Look at the images / labels
@@ -39,7 +43,7 @@ train_looper = Looper(network, device, loss, optimizer,
 valid_looper = Looper(network, device, loss, optimizer,
                       dataloader["valid"], len(cell_dataset["valid"]), writer, validation=True)
 
-for epoch in range(20):
+for epoch in range(50):
     print(f"Epoch: {epoch}")
     train_looper.run()
     with torch.no_grad():

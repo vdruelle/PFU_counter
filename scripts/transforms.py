@@ -1,6 +1,7 @@
 import random
 import torch
 import torchvision
+import numpy as np
 
 from torchvision.transforms import functional as F
 
@@ -44,3 +45,27 @@ class GaussianBlur(object):
     def __call__(self, image, target):
         image = torchvision.transforms.GaussianBlur(self.kernel_size, self.sigma).forward(image)
         return image, target
+
+
+#### For the colony counter ####
+
+class CounterRandomHorizontalFlip(object):
+    def __init__(self, prob):
+        self.prob = prob
+
+    def __call__(self, image, target):
+        if random.random() < self.prob:
+            image = np.fliplr(image)
+            target = np.fliplr(target)
+        return image.copy(), target.copy() # copy necessary otherwise pytorch crash
+
+
+class CounterRandomVerticalFlip(object):
+    def __init__(self, prob):
+        self.prob = prob
+
+    def __call__(self, image, target):
+        if random.random() < self.prob:
+            image = np.flipud(image)
+            target = np.flipud(target)
+        return image.copy(), target.copy() # copy necessary otherwise pytorch crash

@@ -6,6 +6,7 @@ import torch
 import torch.utils.data as data
 import torchvision.transforms as transforms
 from PIL import Image
+from typing import Optional
 
 class LabDataset(data.Dataset):
     def __init__(self, image_dir, label_dir, transform=None):
@@ -69,8 +70,7 @@ class H5Dataset(data.Dataset):
 
     def __init__(self,
                  dataset_path: str,
-                 horizontal_flip: float=0.0,
-                 vertical_flip: float=0.0):
+                 transform: Optional[transforms.Compose] = None):
         """
         Initialize flips probabilities and pointers to a HDF5 file.
         Args:
@@ -82,8 +82,7 @@ class H5Dataset(data.Dataset):
         self.h5 = h5py.File(dataset_path, 'r')
         self.images = self.h5['images']
         self.labels = self.h5['labels']
-        self.horizontal_flip = horizontal_flip
-        self.vertical_flip = vertical_flip
+        self.transform = transform
 
     def __len__(self):
         """Return no. of samples in HDF5 file."""
@@ -91,22 +90,11 @@ class H5Dataset(data.Dataset):
 
     def __getitem__(self, index: int):
         """Return next sample (randomly flipped)."""
-        # if both flips probabilities are zero return an image and a label
-        if not (self.horizontal_flip or self.vertical_flip):
+
+        if self.transform is not None:
+            return self.transform(self.images[index], self.labels[index])
+        else:
             return self.images[index], self.labels[index]
-
-        # axis = 1 (vertical flip), axis = 2 (horizontal flip)
-        axis_to_flip = []
-
-        if random() < self.vertical_flip:
-            axis_to_flip.append(1)
-
-        if random() < self.horizontal_flip:
-            axis_to_flip.append(2)
-
-        return (np.flip(self.images[index], axis=axis_to_flip).copy(),
-                np.flip(self.labels[index], axis=axis_to_flip).copy())
-
 
 # --- PYTESTS --- #
 
