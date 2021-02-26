@@ -60,7 +60,6 @@ class LabDataset(data.Dataset):
 
 
 # This part if from the github on cell counting. TODO : change the way the data augmentation is done.
-"""PyTorch dataset for HDF5 files generated with `get_data.py`."""
 from random import random
 import h5py
 
@@ -121,9 +120,7 @@ def run_batch(flip):
     """Sanity check for HDF5 dataloader checks for shapes and empty arrays."""
     # datasets to test loader on
     datasets = {
-        'cell': (3, 256, 256),
-        'mall': (3, 480, 640),
-        'ucsd': (1, 160, 240)
+        'data/cells': (3, 256, 256),
     }
 
     # for each dataset check both training and validation HDF5
@@ -135,7 +132,7 @@ def run_batch(flip):
                              horizontal_flip=1.0 * flip,
                              vertical_flip=1.0 * flip)
             # create dataloader with few workers
-            data_loader = data.DataLoader(data, batch_size=4, num_workers=4)
+            data_loader = torch.utils.data.DataLoader(data, batch_size=4, num_workers=4)
 
             # take one batch, check samples, and go to the next file
             for img, label in data_loader:
