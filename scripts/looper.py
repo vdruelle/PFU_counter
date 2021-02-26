@@ -33,7 +33,6 @@ class Looper():
         self.loader = data_loader
         self.size = dataset_size
         self.validation = validation
-        self.plots = plots
         self.running_loss = []
 
     def run(self):
@@ -82,10 +81,6 @@ class Looper():
 
         # calculate errors and standard deviation
         self.update_errors()
-
-        # update live plot
-        if self.plots is not None:
-            self.plot()
 
         # print epoch summary
         self.log()
