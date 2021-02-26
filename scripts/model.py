@@ -129,7 +129,7 @@ class UNet(nn.Module):
         return self.density_pred(block7)
 
 
-# --- PYTESTS --- #
+# --- TESTS --- #
 
 def run_network(network: nn.Module, input_channels: int):
     """Generate a random image, run through network, and check output size."""

@@ -1,6 +1,7 @@
 from typing import Optional, List
 import torch
 import numpy as np
+from torch.utils.tensorboard import SummaryWriter
 
 
 class Looper():
@@ -13,7 +14,8 @@ class Looper():
                  optimizer: torch.optim.Optimizer,
                  data_loader: torch.utils.data.DataLoader,
                  dataset_size: int,
-                 validation: bool=False):
+                 writer: SummaryWriter,
+                 validation: bool = False):
         """
         Initialize Looper.
         Args:
@@ -33,7 +35,8 @@ class Looper():
         self.loader = data_loader
         self.size = dataset_size
         self.validation = validation
-        self.running_loss = []
+        self.writer = writer
+        self.epoch = 0
 
     def run(self):
         """Run a single epoch loop and returns the mean absolute error.
@@ -41,7 +44,6 @@ class Looper():
         # reset current results and add next entry for running loss
         self.true_values = []
         self.predicted_values = []
-        self.running_loss.append(0)
 
         # set a proper mode: train or eval
         self.network.train(not self.validation)
@@ -60,7 +62,6 @@ class Looper():
 
             # calculate loss and update running loss
             loss = self.loss(result, label)
-            self.running_loss[-1] += image.shape[0] * loss.item() / self.size
 
             # update weights if in train mode
             if not self.validation:
@@ -84,6 +85,7 @@ class Looper():
 
         # print epoch summary
         self.log()
+        self.epoch += 1
 
         return self.mean_abs_err
 
@@ -95,14 +97,9 @@ class Looper():
         self.err = [true - predicted for true, predicted in
                     zip(self.true_values, self.predicted_values)]
         self.abs_err = [abs(error) for error in self.err]
-        self.mean_err = sum(self.err) / self.size
         self.mean_abs_err = sum(self.abs_err) / self.size
-        self.std = np.array(self.err).std()
 
     def log(self):
         """Print current epoch results."""
-        print(f"{'Train' if not self.validation else 'Valid'}:\n"
-              f"\tAverage loss: {self.running_loss[-1]:3.4f}\n"
-              f"\tMean error: {self.mean_err:3.3f}\n"
-              f"\tMean absolute error: {self.mean_abs_err:3.3f}\n"
-              f"\tError deviation: {self.std:3.3f}")
+        print(f"{'Train' if not self.validation else 'Valid'} mean absolute error: {self.mean_abs_err:3.3f}")
+        writer.add_scalar(f"Counter_loss/{'Train' if not self.validation else 'Valid'}", self.mean_abs_err, self.epoch)
