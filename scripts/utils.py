@@ -14,6 +14,7 @@ def plot_image_target(image, target):
     plt.gca().add_collection(pc)
     # plt.show()
 
+
 def plot_image_dot(image, label):
     image = np.transpose(image, (1, 2, 0))
     label = np.transpose(label, (1, 2, 0))
