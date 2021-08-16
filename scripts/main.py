@@ -2,7 +2,6 @@ import os
 import sys
 import pathlib
 import numpy as np
-import matplotlib.pyplot as plt
 import math
 import torch
 import torchvision
@@ -23,7 +22,8 @@ device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 image_dir = str(pathlib.Path.cwd()) + "/data/lab_raw_good"
 label_dir = str(pathlib.Path.cwd()) + "/data/lab_raw_good_labels"
 
-writer = SummaryWriter('runs/Run_with_augmentation_lessdecay')
+writer = SummaryWriter('runs/Default')
+# writer = SummaryWriter('runs/Test')
 
 # Could add data augmentation here
 transform = Compose([RandomHorizontalFlip(0.5), GaussianBlur(3)])
@@ -32,15 +32,16 @@ dataset_test = LabDataset(image_dir, label_dir, transform=None)
 
 # split the dataset in train and test set
 # train_set, test_set = torch.utils.data.random_split(dataset, [31, 5])
-test_set = torch.utils.data.Subset(dataset_test, range(9,14))
+test_set = torch.utils.data.Subset(dataset_test, range(9, 14))
 
 train_loader = torch.utils.data.DataLoader(
-    dataset, batch_size=1, shuffle=True, num_workers=4, collate_fn=collate_fn)
+    dataset, batch_size=4, shuffle=True, num_workers=4, collate_fn=collate_fn)
 test_loader = torch.utils.data.DataLoader(
-    test_set, batch_size=1, shuffle=False, num_workers=4, collate_fn=collate_fn)
+    test_set, batch_size=4, shuffle=False, num_workers=4, collate_fn=collate_fn)
 
 # The model
-model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
+# model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
+model = torchvision.models.detection.fasterrcnn_mobilenet_v3_large_fpn(pretrained=True)
 num_classes = 4  # background + the 3 others
 in_features = model.roi_heads.box_predictor.cls_score.in_features
 # replacing the pre rtained head with a new one
@@ -49,11 +50,11 @@ model.to(device)
 
 # Optimizer
 params = [p for p in model.parameters() if p.requires_grad]
-optimizer = torch.optim.SGD(params, lr=0.005, momentum=0.9, weight_decay=0.0005)
-lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=3, gamma=0.5)
+optimizer = torch.optim.SGD(params, lr=0.01, momentum=0.9, weight_decay=0.0005)
+lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1)
 
 
-num_epochs = 10
+num_epochs = 15
 n_iter = 0
 for epoch in range(num_epochs):
     # train for one epoch, printing every 10 iterations
@@ -97,7 +98,7 @@ for epoch in range(num_epochs):
             loss = losses_sum.item()
             test_loss += loss
         test_loss = test_loss / len(test_set)
-        writer.add_scalar("Total_loss/test", test_loss, (epoch+1)*len(dataset))
+        writer.add_scalar("Total_loss/test", test_loss, (epoch + 1) * len(dataset))
 
     # update the learning rate
     lr_scheduler.step()
