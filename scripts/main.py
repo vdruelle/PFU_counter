@@ -47,6 +47,7 @@ in_features = model.roi_heads.box_predictor.cls_score.in_features
 # replacing the pre rtained head with a new one
 model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
 model.to(device)
+breakpoint()
 
 # Optimizer
 params = [p for p in model.parameters() if p.requires_grad]
