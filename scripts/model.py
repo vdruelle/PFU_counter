@@ -1,15 +1,14 @@
 """The implementation of U-Net model"""
 from typing import Tuple
 
-import numpy as np
 import torch
 from torch import nn
 
 
 def conv_block(channels: Tuple[int, int],
                size: Tuple[int, int],
-               stride: Tuple[int, int]=(1, 1),
-               N: int=1):
+               stride: Tuple[int, int] = (1, 1),
+               N: int = 1):
     """
     Create a block with N convolutional layers with ReLU activation function.
     The first layer is IN x OUT, and all others - OUT x OUT.
@@ -22,7 +21,7 @@ def conv_block(channels: Tuple[int, int],
         A sequential container of N convolutional layers.
     """
     # a single convolution + batch normalization + ReLU block
-    block = lambda in_channels: nn.Sequential(
+    def block(in_channels): return nn.Sequential(
         nn.Conv2d(in_channels=in_channels,
                   out_channels=channels[1],
                   kernel_size=size,
@@ -43,8 +42,8 @@ class ConvCat(nn.Module):
     def __init__(self,
                  channels: Tuple[int, int],
                  size: Tuple[int, int],
-                 stride: Tuple[int, int]=(1, 1),
-                 N: int=1):
+                 stride: Tuple[int, int] = (1, 1),
+                 N: int = 1):
         """
         Create a sequential container with convolutional block (see conv_block)
         with N convolutional layers and upsampling by factor 2.
@@ -64,7 +63,6 @@ class ConvCat(nn.Module):
         return torch.cat([self.conv(to_conv), to_cat], dim=1)
 
 
-
 class UNet(nn.Module):
     """
     U-Net implementation.
@@ -72,7 +70,7 @@ class UNet(nn.Module):
     image segmentation."
     """
 
-    def __init__(self, filters: int=64, input_filters: int=3, **kwargs):
+    def __init__(self, filters: int = 64, input_filters: int = 3, **kwargs):
         """
         Create U-Net model with:
             * fixed kernel size = (3, 3)

@@ -16,12 +16,12 @@ def plot_image_target(image, target):
 
 
 def plot_image_dot(image, label):
-    image = np.transpose(image, (1, 2, 0))
-    label = np.transpose(label, (1, 2, 0))
+    im = np.transpose(image, (1, 2, 0))
+    lab = np.transpose(label, (1, 2, 0))
 
     plt.figure(figsize=(14, 10))
-    plt.imshow(image)
+    plt.imshow(im)
 
     plt.figure(figsize=(14, 10))
-    plt.imshow(label)
+    plt.imshow(lab)
     plt.show()
