@@ -1,3 +1,5 @@
+import h5py
+from random import random
 import numpy as np
 import pandas as pd
 import os
@@ -7,6 +9,7 @@ import torch.utils.data as data
 import torchvision.transforms as transforms
 from PIL import Image
 from typing import Optional
+
 
 class LabDataset(data.Dataset):
     def __init__(self, image_dir, label_dir, transform=None):
@@ -28,17 +31,17 @@ class LabDataset(data.Dataset):
         image = image.convert("RGB")
         image_width, image_height = image.size
         # This is in relative coordinate
-        df = pd.read_csv(label_path, sep=" ", names=["label", "cx","cy","w","h"])
-        df["label"] += 1 # label 0 must be background
+        df = pd.read_csv(label_path, sep=" ", names=["label", "cx", "cy", "w", "h"])
+        df["label"] += 1  # label 0 must be background
         df2 = df.copy(deep=True)
         df2.columns = ["label", "x1", "y1", "x2", "y2"]
-        df2["x1"] = (df["cx"] - df["w"]/2.0)*image_width
-        df2["y1"] = (df["cy"] - df["h"]/2.0)*image_height
-        df2["x2"] = (df["cx"] + df["w"]/2.0)*image_width
-        df2["y2"] = (df["cy"] + df["h"]/2.0)*image_height
+        df2["x1"] = (df["cx"] - df["w"] / 2.0) * image_width
+        df2["y1"] = (df["cy"] - df["h"] / 2.0) * image_height
+        df2["x2"] = (df["cx"] + df["w"] / 2.0) * image_width
+        df2["y2"] = (df["cy"] + df["h"] / 2.0) * image_height
         boxes = df2[["x1", "y1", "x2", "y2"]].values.tolist()
         labels = df["label"].values.tolist()
-        area = (df["w"]*image_width*df["h"]*image_height).values.tolist()
+        area = (df["w"] * image_width * df["h"] * image_height).values.tolist()
 
         image = transforms.functional.to_tensor(image)
         boxes = torch.as_tensor(boxes, dtype=torch.float32)
@@ -58,11 +61,7 @@ class LabDataset(data.Dataset):
         return image, target
 
 
-
-
-# This part if from the github on cell counting. TODO : change the way the data augmentation is done.
-from random import random
-import h5py
+# This part if from the github on cell counting.
 
 
 class H5Dataset(data.Dataset):
@@ -75,8 +74,6 @@ class H5Dataset(data.Dataset):
         Initialize flips probabilities and pointers to a HDF5 file.
         Args:
             dataset_path: a path to a HDF5 file
-            horizontal_flip: the probability of applying horizontal flip
-            vertical_flip: the probability of applying vertical flip
         """
         super(H5Dataset, self).__init__()
         self.h5 = h5py.File(dataset_path, 'r')
@@ -97,6 +94,7 @@ class H5Dataset(data.Dataset):
             return self.images[index], self.labels[index]
 
 # --- PYTESTS --- #
+
 
 def test_loader():
     """Test HDF5 dataloader with flips on and off."""
