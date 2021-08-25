@@ -75,7 +75,7 @@ def make_column_images():
         cropped_list = crop_lab_image(image_path, label_path)
 
         for idx, im in enumerate(cropped_list[2:]):
-            im_name = "data/phage_columns/" + name + "_" + str(idx) + ".jpg"
+            im_name = "data/phage_columns/" + name + "_" + str(idx) + ".png"
             im.save(im_name)
 
 
@@ -122,13 +122,13 @@ def make_spot_images():
             cropped_list = crop_column_image(image_path, label_path)
 
             for idx, im in enumerate(cropped_list):
-                im_name = "data/phage_spots/" + name + "_" + str(idx) + ".jpg"
+                im_name = "data/phage_spots/" + name + "_" + str(idx) + ".png"
                 im.save(im_name)
 
 
 if __name__ == '__main__':
     # make_column_images()
-    # make_spot_images()
+    make_spot_images()
 
     # image = Image.open("data/phage_columns/20200204_115031_0.jpg")
     # tmp = np.array(image)
@@ -140,14 +140,14 @@ if __name__ == '__main__':
     # plt.plot(tmp)
     # plt.show()
 
-    import os
-    m, mm = 0, 0
-    for image_path in os.listdir("data/phage_spots/"):
-        image = Image.open("data/phage_spots/" + image_path)
-        image = np.array(image)
-        m = max(image.shape[0], m)
-        mm = max(image.shape[1], mm)
-        print(image.shape[0]/8, image.shape[1]/8)
-
-    print("max shape")
-    print(m, mm)
+    # import os
+    # m, mm = 0, 0
+    # for image_path in os.listdir("data/phage_spots/"):
+    #     image = Image.open("data/phage_spots/" + image_path)
+    #     image = np.array(image)
+    #     m = max(image.shape[0], m)
+    #     mm = max(image.shape[1], mm)
+    #     print(image.shape[0]/8, image.shape[1]/8)
+    #
+    # print("max shape")
+    # print(m, mm)
