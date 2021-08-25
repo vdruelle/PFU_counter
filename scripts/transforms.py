@@ -57,7 +57,7 @@ class CounterRandomHorizontalFlip(object):
         if random.random() < self.prob:
             image = np.fliplr(image)
             target = np.fliplr(target)
-        return image.copy(), target.copy() # copy necessary otherwise pytorch crash
+        return image.copy(), target.copy()  # copy necessary otherwise pytorch crash
 
 
 class CounterRandomVerticalFlip(object):
@@ -68,4 +68,15 @@ class CounterRandomVerticalFlip(object):
         if random.random() < self.prob:
             image = np.flipud(image)
             target = np.flipud(target)
-        return image.copy(), target.copy() # copy necessary otherwise pytorch crash
+        return image.copy(), target.copy()  # copy necessary otherwise pytorch crash
+
+
+class CounterNormalize(object):
+    def __init__(self, mean, std):
+        self.mean = mean
+        self.std = std
+
+    def __call__(self, image, target):
+        image = F.normalize(torch.from_numpy(image), mean=self.mean, std=self.std)
+        # return image.copy(), target.copy()  # copy necessary otherwise pytorch crash
+        return image, torch.from_numpy(target)  # copy necessary otherwise pytorch crash
