@@ -183,7 +183,6 @@ def generate_phage_data():
         """
         for ii, label_name in enumerate(labels):  # Only images that have labels
             image_name = label_name.replace("_labels", "")
-            image_name = image_name.replace(".png", ".jpg")
 
             image = Image.open(spots_image_folder + image_name)
             image = image.resize(img_size)
