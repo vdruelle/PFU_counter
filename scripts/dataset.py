@@ -93,6 +93,16 @@ class H5Dataset(data.Dataset):
         else:
             return self.images[index], self.labels[index]
 
+    def get_normalisation(self):
+        """
+        Returns the 3D mean and std from the list of images.
+        """
+        data = self.images
+        mean = [data[:, ii, :, :].mean() for ii in range(data.shape[1])]
+        std = [data[:, ii, :, :].std() for ii in range(data.shape[1])]
+        return mean, std
+
+
 # --- PYTESTS --- #
 
 
