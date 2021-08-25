@@ -27,7 +27,7 @@ def conv_block(channels: Tuple[int, int],
                   out_channels=channels[1],
                   kernel_size=size,
                   stride=stride,
-                  bias=True,
+                  bias=False,
                   padding=(size[0] // 2, size[1] // 2),
                   padding_mode=padding_mode),
         nn.BatchNorm2d(num_features=channels[1]),
@@ -72,7 +72,7 @@ class UNet(nn.Module):
     image segmentation."
     """
 
-    def __init__(self, filters: int = 64, input_filters: int = 3, **kwargs):
+    def __init__(self, filters: int = 64, N: int = 2, input_filters: int = 3, **kwargs):
         """
         Create U-Net model with:
             * fixed kernel size = (3, 3)
@@ -92,19 +92,19 @@ class UNet(nn.Module):
         up_filters = (2 * filters, filters)
 
         # downsampling
-        self.block1 = conv_block(channels=initial_filters, size=(3, 3), N=2)
-        self.block2 = conv_block(channels=down_filters, size=(3, 3), N=2)
-        self.block3 = conv_block(channels=down_filters, size=(3, 3), N=2)
+        self.block1 = conv_block(channels=initial_filters, size=(3, 3), N=N)
+        self.block2 = conv_block(channels=down_filters, size=(3, 3), N=N)
+        self.block3 = conv_block(channels=down_filters, size=(3, 3), N=N)
 
         # upsampling
-        self.block4 = ConvCat(channels=down_filters, size=(3, 3), N=2)
-        self.block5 = ConvCat(channels=up_filters, size=(3, 3), N=2)
-        self.block6 = ConvCat(channels=up_filters, size=(3, 3), N=2)
+        self.block4 = ConvCat(channels=down_filters, size=(3, 3), N=N)
+        self.block5 = ConvCat(channels=up_filters, size=(3, 3), N=N)
+        self.block6 = ConvCat(channels=up_filters, size=(3, 3), N=N)
 
         # density prediction
-        self.block7 = conv_block(channels=up_filters, size=(3, 3), N=2)
+        self.block7 = conv_block(channels=up_filters, size=(3, 3), N=N)
         self.density_pred = nn.Conv2d(in_channels=filters, out_channels=1,
-                                      kernel_size=(1, 1), bias=True, padding_mode="zeros")
+                                      kernel_size=(1, 1), bias=False, padding_mode="zeros")
 
     def forward(self, input: torch.Tensor):
         """Forward pass."""
