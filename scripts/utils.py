@@ -36,3 +36,17 @@ def plot_counter(image, prediction, label):
     axs[1].imshow(prediction, cmap="hot", vmin=0, vmax=2, interpolation=None)
     axs[1].set_xlabel(f"Real: {round(np.sum(label)/100)}   Estimated: {round(np.sum(prediction)/100)}")
     axs[2].imshow(label, cmap="hot", vmin=0, vmax=2, interpolation=None)
+
+
+def plot_counter_albu(image, label, raw_image, raw_label):
+    """
+    Plots a phage colony image and its label side by side. Used to test albumentation augmentation.
+    """
+    fig, axs = plt.subplots(2, 2, sharex=True, sharey=True)
+    axs[0, 0].imshow(raw_image, interpolation=None)
+    axs[0, 1].imshow(image, interpolation=None)
+    axs[1, 0].imshow(raw_label, cmap="hot", vmin=0, vmax=2, interpolation=None)
+    axs[1, 1].imshow(label, cmap="hot", vmin=0, vmax=2, interpolation=None)
+    axs[1, 1].set_xlabel(f"Real: {round(np.sum(raw_label)/100)}   Estimated: {round(np.sum(label)/100)}")
+    plt.tight_layout()
+    # plt.show()
