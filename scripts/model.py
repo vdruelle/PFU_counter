@@ -8,7 +8,8 @@ from torch import nn
 def conv_block(channels: Tuple[int, int],
                size: Tuple[int, int],
                stride: Tuple[int, int] = (1, 1),
-               N: int = 1):
+               N: int = 1,
+               padding_mode="zeros"):
     """
     Create a block with N convolutional layers with ReLU activation function.
     The first layer is IN x OUT, and all others - OUT x OUT.
@@ -26,8 +27,9 @@ def conv_block(channels: Tuple[int, int],
                   out_channels=channels[1],
                   kernel_size=size,
                   stride=stride,
-                  bias=False,
-                  padding=(size[0] // 2, size[1] // 2)),
+                  bias=True,
+                  padding=(size[0] // 2, size[1] // 2),
+                  padding_mode=padding_mode),
         nn.BatchNorm2d(num_features=channels[1]),
         nn.ReLU()
     )
@@ -102,7 +104,7 @@ class UNet(nn.Module):
         # density prediction
         self.block7 = conv_block(channels=up_filters, size=(3, 3), N=2)
         self.density_pred = nn.Conv2d(in_channels=filters, out_channels=1,
-                                      kernel_size=(1, 1), bias=False)
+                                      kernel_size=(1, 1), bias=True, padding_mode="zeros")
 
     def forward(self, input: torch.Tensor):
         """Forward pass."""
