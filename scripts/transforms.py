@@ -6,6 +6,7 @@ import albumentations as A
 
 from dataset import H5Dataset
 from torchvision.transforms import functional as F
+from albumentations.pytorch import ToTensorV2
 import utils
 
 
@@ -85,15 +86,36 @@ class CounterNormalize(object):
         return image, torch.from_numpy(target)  # copy necessary otherwise pytorch crash
 
 
-class CounterAlbumentation(object):
+class CounterToTensor(object):
     def __call__(self, image, target):
-        transform = A.Compose(
-            [A.Flip(p=0.5),
-             A.Rotate(p=0.5),
-             A.RandomCrop(200, 200, p=0.5)
-             ],
-            additional_targets={"target": "image"}
-        )
+        return F.to_tensor(image), F.to_tensor(target)
+
+
+class CounterAlbumentation(object):
+    def __init__(self, train=True):
+        self.train = train
+
+    def __call__(self, image, target):
+        if self.train:
+            transform = A.Compose(
+                [A.Compose(
+                    [A.ColorJitter(),
+                     A.GaussianBlur(blur_limit=(3, 5)),
+                     A.GaussNoise(0.005)
+                     ]),
+                 A.Compose(
+                    [A.Flip(p=0.5),
+                     A.Rotate(p=0.5),
+                     # A.RandomResizedCrop(256, 256, scale=(0.5, 0.9), ratio=(1, 1), p=0.5),
+                     ToTensorV2()
+                     ],
+                    additional_targets={"target": "image"})
+                 ]
+            )
+        else:
+            transform = A.Compose([ToTensorV2()],
+                                  additional_targets={"target": "image"})
+
         transformed = transform(image=image, target=target)
         return transformed["image"], transformed["target"]
 
@@ -106,12 +128,16 @@ if __name__ == '__main__':
     image, label = dataset.images[0], dataset.labels[0]
     image = np.transpose(image, (2, 1, 0))
     label = np.transpose(label, (2, 1, 0))
+    true = label.sum()
 
     for ii in range(10):
         transform = CounterAlbumentation()
         transim, translab = transform(image, label)
+        transim = np.transpose(transim, (2, 1, 0))
+        translab = np.transpose(translab, (2, 1, 0))
 
         fig, axs = plt.subplots(1, 2)
         axs[0].imshow(transim)
         axs[1].imshow(translab)
+        axs[1].set_xlabel(f"{translab.sum()} {true}")
     plt.show()
