@@ -111,7 +111,7 @@ if __name__ == '__main__':
         transform = CounterAlbumentation()
         transim, translab = transform(image, label)
 
-        fig, axs = plt.subplots(1,2)
+        fig, axs = plt.subplots(1, 2)
         axs[0].imshow(transim)
         axs[1].imshow(translab)
     plt.show()

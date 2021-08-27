@@ -1,16 +1,13 @@
-import os
-import sys
 import numpy as np
 import matplotlib.pyplot as plt
 import torch
 from torch.utils.tensorboard import SummaryWriter
-import albumentations as A
 
 from dataset import H5Dataset
 from utils import plot_image_dot, plot_counter
 from model import UNet
 from looper import Looper
-from transforms import Compose, CounterRandomHorizontalFlip, CounterRandomVerticalFlip, CounterNormalize
+from transforms import Compose, CounterRandomHorizontalFlip, CounterRandomVerticalFlip
 
 
 def pretrain_original_data():
@@ -90,9 +87,9 @@ def train_phage_data():
     dataloader = {}
     for phase in ["train", "valid"]:
         dataloader[phase] = torch.utils.data.DataLoader(
-            phage_colonies_dataset[phase], batch_size=6, num_workers=6, shuffle=(phase == "train"))
+            phage_colonies_dataset[phase], batch_size=10, num_workers=6, shuffle=(phase == "train"))
 
-    writer = SummaryWriter('runs/Phage_colonies_png2')
+    writer = SummaryWriter('runs/Phage_colonies')
 
     network = UNet().to(device)
     # network.load_state_dict(torch.load("model_saves/Counter_original.pt"))
@@ -141,7 +138,7 @@ def plot_network_predictions():
     Phage_colonies_folder = "data/phage_colonies/"
 
     dataset = H5Dataset(Phage_colonies_folder + "train.h5", None)
-    dataloader = torch.utils.data.DataLoader(dataset, batch_size=10, num_workers=6, shuffle=True)
+    dataloader = torch.utils.data.DataLoader(dataset, batch_size=6, num_workers=6, shuffle=True)
 
     images, labels, predictions = test_network_prediction(network, dataloader, device)
 
@@ -151,6 +148,6 @@ def plot_network_predictions():
 
 
 if __name__ == '__main__':
-    # pretrain_original_data()
-    train_phage_data()
+    pretrain_original_data()
+    # train_phage_data()
     # plot_network_predictions()

@@ -3,6 +3,7 @@ import os
 import shutil
 import zipfile
 from glob import glob
+import wget
 from typing import List, Tuple
 
 import h5py
@@ -40,8 +41,8 @@ def create_hdf5(dataset_name: str,
 
     # add two HDF5 datasets (images and labels) for each HDF5 file
     for h5, size in ((train_h5, train_size), (valid_h5, valid_size)):
-        h5.create_dataset('images', (size, in_channels, *img_size))
-        h5.create_dataset('labels', (size, 1, *img_size))
+        h5.create_dataset('images', (size, *img_size, in_channels))
+        h5.create_dataset('labels', (size, *img_size, 1))
 
     return train_h5, valid_h5
 
@@ -64,10 +65,10 @@ def generate_cell_data():
     # download and extract dataset
     get_and_unzip(
         'http://www.robots.ox.ac.uk/~vgg/research/counting/cells.zip',
-        location='cells'
+        location='data/cells'
     )
     # create training and validation HDF5 files
-    train_h5, valid_h5 = create_hdf5('cell',
+    train_h5, valid_h5 = create_hdf5('data/cell',
                                      train_size=150,
                                      valid_size=50,
                                      img_size=(256, 256),
@@ -75,7 +76,7 @@ def generate_cell_data():
 
     # get the list of all samples
     # dataset name convention: XXXcell.png (image) XXXdots.png (label)
-    image_list = glob(os.path.join('cells', '*cell.*'))
+    image_list = glob(os.path.join('data/cells', '*cell.*'))
     image_list.sort()
 
     def fill_h5(h5, images):
@@ -90,7 +91,6 @@ def generate_cell_data():
             label_path = img_path.replace('cell.png', 'dots.png')
             # get an image as numpy array
             image = np.array(Image.open(img_path), dtype=np.float32) / 255
-            image = np.transpose(image, (2, 0, 1))
 
             # convert a label image into a density map: dataset provides labels
             # in the form on an image with red dots placed in objects position
@@ -101,10 +101,11 @@ def generate_cell_data():
             label = 100.0 * (label[:, :, 0] > 0)
             # generate a density map by applying a Gaussian filter
             label = gaussian_filter(label, sigma=(1, 1), order=0)
+            label = np.expand_dims(label, axis=-1)
 
             # save data to HDF5 file
             h5['images'][i] = image
-            h5['labels'][i, 0] = label
+            h5['labels'][i] = label
 
     # use first 150 samples for training and the last 50 for validation
     fill_h5(train_h5, image_list[:150])
@@ -115,7 +116,7 @@ def generate_cell_data():
     valid_h5.close()
 
     # cleanup
-    shutil.rmtree('cells')
+    # shutil.rmtree('data/cells')
 
 
 def make_spots_label(path_csv, save_folder):
@@ -187,7 +188,6 @@ def generate_phage_data():
             image = Image.open(spots_image_folder + image_name)
             image = image.resize(img_size)
             image = np.array(image) / 255
-            image = np.transpose(image, (2, 0, 1))  # To match pytorch format (color channel first)
 
             label = Image.open(spots_label_folder + label_name)
             label = resize_spot_label(label, img_size)
@@ -207,6 +207,6 @@ def generate_phage_data():
 
 
 if __name__ == '__main__':
-    # generate_cell_data()
+    generate_cell_data()
     # make_spots_label("data/phage_spots_labels/labels.csv", "data/phage_spots_labels/")
-    generate_phage_data()
+    # generate_phage_data()
