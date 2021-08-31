@@ -2,6 +2,7 @@ from typing import Optional, List
 import torch
 import numpy as np
 from torch.utils.tensorboard import SummaryWriter
+import torchvision
 
 
 class Looper():
@@ -44,6 +45,8 @@ class Looper():
         # reset current results and add next entry for running loss
         self.true_values = []
         self.predicted_values = []
+        self.images = []
+        self.predictions = []
 
         # set a proper mode: train or eval
         self.network.train(not self.validation)
@@ -61,7 +64,14 @@ class Looper():
             result = self.network(image)
 
             # calculate loss and update running loss
+
+            # breakpoint()
+            # loss = (torch.sum(result)/1000 - torch.sum(label)/1000)**2 / torch.sum(label) / 10
             loss = self.loss(result, label)
+
+            if self.validation:
+                self.images += image
+                self.predictions += result
 
             # update weights if in train mode
             if not self.validation:
@@ -73,8 +83,8 @@ class Looper():
                 # integrate a density map to get no. of objects
                 # note: density maps were normalized to 100 * no. of objects
                 #       to make network learn better
-                true_counts = torch.sum(true).item() / 100
-                predicted_counts = torch.sum(predicted).item() / 100
+                true_counts = torch.sum(true).item() / 1000
+                predicted_counts = torch.sum(predicted).item() / 1000
 
                 # update current epoch results
                 self.true_values.append(true_counts)
@@ -102,4 +112,12 @@ class Looper():
     def log(self):
         """Print current epoch results."""
         print(f"{'Train' if not self.validation else 'Valid'} mean absolute error: {self.mean_abs_err:3.3f}")
-        self.writer.add_scalar(f"Counter_loss/{'Train' if not self.validation else 'Valid'}", self.mean_abs_err, self.epoch)
+        self.writer.add_scalar(
+            f"Counter_loss/{'Train' if not self.validation else 'Valid'}", self.mean_abs_err, self.epoch)
+        if self.validation:
+            if self.epoch == 0:
+                grid = torchvision.utils.make_grid(self.images[-6:], nrow=20)
+                self.writer.add_image("images", grid, self.epoch)
+            grid2 = torchvision.utils.make_grid(
+                self.predictions[-6:], nrow=20, value_range=(0, 2), normalize=True)
+            self.writer.add_image("predictions", grid2, self.epoch)
