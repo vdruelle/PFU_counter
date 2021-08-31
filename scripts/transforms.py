@@ -92,26 +92,46 @@ class CounterToTensor(object):
 
 
 class CounterAlbumentation(object):
-    def __init__(self, train=True):
+    def __init__(self, train=True, mode=0):
         self.train = train
+        self.mode = mode
 
     def __call__(self, image, target):
         if self.train:
-            transform = A.Compose(
-                [A.Compose(
-                    [A.ColorJitter(),
-                     A.GaussianBlur(blur_limit=(3, 5)),
-                     A.GaussNoise(0.005)
-                     ]),
-                 A.Compose(
-                    [A.Flip(p=0.5),
-                     A.Rotate(p=0.5),
-                     # A.RandomResizedCrop(256, 256, scale=(0.5, 0.9), ratio=(1, 1), p=0.5),
-                     ToTensorV2()
-                     ],
+            if self.mode == 0:
+                transform = A.Compose(
+                    [
+                        A.Flip(p=0.5),
+                        A.RandomRotate90(p=0.5),
+                        ToTensorV2()
+                    ],
                     additional_targets={"target": "image"})
-                 ]
-            )
+            if self.mode == 1:
+                transform = A.Compose(
+                    [
+                        A.Flip(p=0.5),
+                        A.Rotate(p=0.5),
+                        ToTensorV2()
+                    ],
+                    additional_targets={"target": "image"})
+            if self.mode == 2:
+                transform = A.Compose(
+                    [A.Compose(
+                        [
+                            A.ColorJitter(),
+                            A.GaussianBlur(blur_limit=(3, 5)),
+                            A.GaussNoise(0.002)
+                        ]),
+                     A.Compose(
+                        [
+                            A.Flip(p=0.5),
+                            A.Rotate(p=0.5),
+                            # A.RandomResizedCrop(256, 256, scale=(0.5, 0.9), ratio=(1, 1), p=0.5),
+                            ToTensorV2()
+                        ],
+                        additional_targets={"target": "image"})
+                     ]
+                )
         else:
             transform = A.Compose([ToTensorV2()],
                                   additional_targets={"target": "image"})
@@ -126,8 +146,6 @@ if __name__ == '__main__':
     dataset = H5Dataset(Phage_colonies_folder + "train.h5", None)
 
     image, label = dataset.images[0], dataset.labels[0]
-    image = np.transpose(image, (2, 1, 0))
-    label = np.transpose(label, (2, 1, 0))
     true = label.sum()
 
     for ii in range(10):
