@@ -10,6 +10,7 @@ import h5py
 import numpy as np
 from PIL import Image
 from scipy.ndimage import gaussian_filter
+import pandas as pd
 
 
 def create_hdf5(dataset_name: str,
@@ -136,7 +137,7 @@ def make_spots_label(path_csv, save_folder):
         label_image.save(save_folder + image_name.split(".")[0] + "_labels.png")
 
 
-def resize_spot_label(label, img_size=(256, 256)):
+def resize_spot_label(label, img_size=(256, 256), value=100):
     """
     Resize the spot label image to the desired shape.
     """
@@ -146,7 +147,7 @@ def resize_spot_label(label, img_size=(256, 256)):
     x = np.round(x * (img_size[0] / label.shape[0])).astype(int)
     y = np.round(y * (img_size[1] / label.shape[1])).astype(int)
     label = np.zeros(img_size)
-    label[x, y] = 100
+    label[x, y] = value
     return label
 
 
@@ -161,7 +162,7 @@ def generate_phage_data():
 
     # Defining length of the train and valid dataset
     nb_labeled = len(os.listdir(spots_label_folder)) - 1  # -1 for the CSV file in there
-    valid_size = 10
+    valid_size = 20
     train_size = nb_labeled - valid_size
     img_size = (256, 256)
     label_list = os.listdir(spots_label_folder)
@@ -172,8 +173,8 @@ def generate_phage_data():
     valid_h5 = h5py.File(os.path.join(dataset_name, 'valid.h5'), 'w')
     # add two HDF5 datasets (images and labels) for each HDF5 file
     for h5, size in ((train_h5, train_size), (valid_h5, valid_size)):
-        h5.create_dataset('images', (size, 3, *img_size))
-        h5.create_dataset('labels', (size, 1, *img_size))
+        h5.create_dataset('images', (size, *img_size, 3))
+        h5.create_dataset('labels', (size, *img_size, 1))
 
     def fill_h5_spots(h5, labels):
         """
@@ -190,13 +191,14 @@ def generate_phage_data():
             image = np.array(image) / 255
 
             label = Image.open(spots_label_folder + label_name)
-            label = resize_spot_label(label, img_size)
+            label = resize_spot_label(label, img_size, 100)
             # generate a density map by applying a Gaussian filter
             label = gaussian_filter(label, sigma=(1, 1), order=0)
+            label = np.expand_dims(label, axis=-1)
 
             # save data to HDF5 file
             h5['images'][ii] = image
-            h5['labels'][ii, 0] = label
+            h5['labels'][ii] = label
 
     # Split between train and validation
     fill_h5_spots(train_h5, label_list[:train_size])
@@ -206,7 +208,84 @@ def generate_phage_data():
     valid_h5.close()
 
 
+def generate_plate_data():
+    """
+    Generates the h5 files for the phage colonies dataset.
+    """
+    dataset_name = "data/phage_plates/"
+    image_folder = "data/lab_raw_good/"
+    label_folder = "data/lab_raw_good_labels/"
+    os.makedirs(dataset_name, exist_ok=True)
+
+    # Shape of the orinial images
+    img_size = (3456, 4608)
+    box_size = (20, 4)  # at maximum 20 boxes per images
+    label_size = 20  # at maximum 20 labels per images, corresponding to the 20 boxes
+    image_list = os.listdir(image_folder)
+    valid_size = 6
+    train_size = len(image_list) - valid_size
+
+    # create HDF5 files: [dataset_name]/(train | valid).h5
+    train_h5 = h5py.File(os.path.join(dataset_name, 'train.h5'), 'w')
+    valid_h5 = h5py.File(os.path.join(dataset_name, 'valid.h5'), 'w')
+    # add two HDF5 datasets (images and labels) for each HDF5 file
+    for h5, size in ((train_h5, train_size), (valid_h5, valid_size)):
+        h5.create_dataset('images', (size, *img_size, 3))
+        h5.create_dataset('boxes', (size, *box_size))
+        h5.create_dataset('labels', (size, label_size))
+
+    def fill_h5_plate(h5, images):
+        """
+        Save images and labels in given HDF5 file.
+        Args:
+            h5: HDF5 file
+            images: the list of label images paths
+        """
+        for ii, image_name in enumerate(images):
+            label_name = image_name.replace(".jpg", ".txt")  # images and label have same name up to extension
+
+            image = Image.open(image_folder + image_name)
+            image = np.array(image) / 255
+
+            boxes, labels = boxes_from_label_file(label_folder + label_name, *img_size, max_length=label_size)
+            # breakpoint()
+
+            # save data to HDF5 file
+            h5['images'][ii] = image
+            h5['boxes'][ii] = boxes
+            h5['labels'][ii] = labels
+
+    # Split between train and validation
+    fill_h5_plate(train_h5, image_list[:train_size])
+    fill_h5_plate(valid_h5, image_list[train_size:])
+
+    train_h5.close()
+    valid_h5.close()
+
+
+def boxes_from_label_file(label_file, image_width, image_height, max_length, pad_value=-1):
+    """
+    Returns labels and boxes as lists, as expected by the RCNN network. Pad with -1 to max length to get
+    constant output sizes.
+    """
+    df = pd.read_csv(label_file, sep=" ", names=["label", "cx", "cy", "w", "h"])
+    df["label"] += 1  # label 0 must be background
+    df2 = df.copy(deep=True)
+    df2.columns = ["label", "x1", "y1", "x2", "y2"]
+    df2["x1"] = (df["cx"] - df["w"] / 2.0) * image_width
+    df2["y1"] = (df["cy"] - df["h"] / 2.0) * image_height
+    df2["x2"] = (df["cx"] + df["w"] / 2.0) * image_width
+    df2["y2"] = (df["cy"] + df["h"] / 2.0) * image_height
+    boxes = df2[["x1", "y1", "x2", "y2"]].values.tolist()
+    boxes += [[pad_value, pad_value, pad_value, pad_value]] * (max_length - len(boxes))  # padding
+    labels = df["label"].values.tolist()
+    labels += [pad_value] * (max_length - len(labels))  # padding
+
+    return boxes, labels
+
+
 if __name__ == '__main__':
-    generate_cell_data()
+    # generate_cell_data()
     # make_spots_label("data/phage_spots_labels/labels.csv", "data/phage_spots_labels/")
     # generate_phage_data()
+    generate_plate_data()
