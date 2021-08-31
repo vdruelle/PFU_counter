@@ -31,10 +31,11 @@ def plot_counter(image, prediction, label):
     """
     Plots a phage colony image and its prediction from the network side by side.
     """
+    from matplotlib.colors import LogNorm
     fig, axs = plt.subplots(1, 3, sharex=True, sharey=True)
     axs[0].imshow(image, interpolation=None)
     axs[1].imshow(prediction, cmap="hot", vmin=0, vmax=2, interpolation=None)
-    axs[1].set_xlabel(f"Real: {round(np.sum(label)/100)}   Estimated: {round(np.sum(prediction)/100)}")
+    axs[1].set_xlabel(f"Real: {round(np.sum(label)/1000)}   Estimated: {round(np.sum(prediction)/1000)}")
     axs[2].imshow(label, cmap="hot", vmin=0, vmax=2, interpolation=None)
 
 
@@ -47,6 +48,6 @@ def plot_counter_albu(image, label, raw_image, raw_label):
     axs[0, 1].imshow(image, interpolation=None)
     axs[1, 0].imshow(raw_label, cmap="hot", vmin=0, vmax=2, interpolation=None)
     axs[1, 1].imshow(label, cmap="hot", vmin=0, vmax=2, interpolation=None)
-    axs[1, 1].set_xlabel(f"Real: {round(np.sum(raw_label)/100)}   Estimated: {round(np.sum(label)/100)}")
+    axs[1, 1].set_xlabel(f"Real: {round(np.sum(raw_label)/1000)}   Estimated: {round(np.sum(label)/1000)}")
     plt.tight_layout()
     # plt.show()
