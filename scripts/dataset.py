@@ -61,6 +61,64 @@ class LabDataset(data.Dataset):
         return image, target
 
 
+class LabH5Dataset(data.Dataset):
+    def __init__(self, dataset_path, transform=None):
+        super(H5Dataset, self).__init__()
+        self.h5 = h5py.File(dataset_path, 'r')
+        self.images = self.h5['images']
+        self.boxes = self.h5['boxes']
+        self.labels = self.h5['labels']
+        self.transform = transform
+
+    def __len__(self):
+        return len(self.images)
+
+    def __getitem__(self, index):
+        if self.transform is not None:
+            return self.transform(self.images[index], self.boxes[index]), self.labels[index]
+        else:
+            return self.images[index], self.boxes[index], self.labels[index]
+
+        image_path = os.path.join(self.image_dir, self.images[idx])
+        label_path = os.path.join(self.label_dir, self.labels[idx])
+
+        image = Image.open(image_path)
+        image = image.transpose(Image.ROTATE_270)
+        image = image.convert("RGB")
+        image_width, image_height = image.size
+        # This is in relative coordinate
+        df = pd.read_csv(label_path, sep=" ", names=["label", "cx", "cy", "w", "h"])
+        df["label"] += 1  # label 0 must be background
+        df2 = df.copy(deep=True)
+        df2.columns = ["label", "x1", "y1", "x2", "y2"]
+        df2["x1"] = (df["cx"] - df["w"] / 2.0) * image_width
+        df2["y1"] = (df["cy"] - df["h"] / 2.0) * image_height
+        df2["x2"] = (df["cx"] + df["w"] / 2.0) * image_width
+        df2["y2"] = (df["cy"] + df["h"] / 2.0) * image_height
+        boxes = df2[["x1", "y1", "x2", "y2"]].values.tolist()
+        labels = df["label"].values.tolist()
+        area = (df["w"] * image_width * df["h"] * image_height).values.tolist()
+
+        image = transforms.functional.to_tensor(image)
+        boxes = torch.as_tensor(boxes, dtype=torch.float32)
+        labels = torch.as_tensor(labels, dtype=torch.int64)
+        image_id = torch.tensor([idx])
+        area = torch.as_tensor(area)
+
+        target = {}
+        target["labels"] = labels
+        target["boxes"] = boxes
+        target["image_id"] = image_id
+        target["area"] = area
+
+        if self.transform is not None:
+            image, target = self.transform(image, target)
+
+        return image, target
+
+
+
+
 # This part if from the github on cell counting.
 
 
