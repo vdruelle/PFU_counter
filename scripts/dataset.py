@@ -7,6 +7,7 @@ import pathlib
 import torch
 import torch.utils.data as data
 import torchvision.transforms as transforms
+from albumentations.pytorch import ToTensorV2
 from PIL import Image
 from typing import Optional
 
@@ -63,7 +64,7 @@ class LabDataset(data.Dataset):
 
 class LabH5Dataset(data.Dataset):
     def __init__(self, dataset_path, transform=None):
-        super(H5Dataset, self).__init__()
+        super(LabH5Dataset, self).__init__()
         self.h5 = h5py.File(dataset_path, 'r')
         self.images = self.h5['images']
         self.boxes = self.h5['boxes']
@@ -74,50 +75,29 @@ class LabH5Dataset(data.Dataset):
         return len(self.images)
 
     def __getitem__(self, index):
+        """
+        Format the image, boxes and labels and return a torch tensor for the image, and a dictionary of torch
+        tensors for the target, as expected by the RCNN network.
+        """
+        # Removing the padding with -1
+        boxes, labels = self.remove_padding(self.boxes[index], self.labels[index])
+
+        # TODO
         if self.transform is not None:
-            return self.transform(self.images[index], self.boxes[index]), self.labels[index]
+            return self.transform(self.images[index], boxes), labels
         else:
-            return self.images[index], self.boxes[index], self.labels[index]
+            boxes = torch.tensor(boxes, dtype=torch.float32)
+            labels = torch.tensor(labels, dtype=torch.int64)
+            target = {"boxes": boxes, "labels": labels}
+            return torch.tensor(np.transpose(self.images[index], (2, 0, 1))), target
 
-        image_path = os.path.join(self.image_dir, self.images[idx])
-        label_path = os.path.join(self.label_dir, self.labels[idx])
-
-        image = Image.open(image_path)
-        image = image.transpose(Image.ROTATE_270)
-        image = image.convert("RGB")
-        image_width, image_height = image.size
-        # This is in relative coordinate
-        df = pd.read_csv(label_path, sep=" ", names=["label", "cx", "cy", "w", "h"])
-        df["label"] += 1  # label 0 must be background
-        df2 = df.copy(deep=True)
-        df2.columns = ["label", "x1", "y1", "x2", "y2"]
-        df2["x1"] = (df["cx"] - df["w"] / 2.0) * image_width
-        df2["y1"] = (df["cy"] - df["h"] / 2.0) * image_height
-        df2["x2"] = (df["cx"] + df["w"] / 2.0) * image_width
-        df2["y2"] = (df["cy"] + df["h"] / 2.0) * image_height
-        boxes = df2[["x1", "y1", "x2", "y2"]].values.tolist()
-        labels = df["label"].values.tolist()
-        area = (df["w"] * image_width * df["h"] * image_height).values.tolist()
-
-        image = transforms.functional.to_tensor(image)
-        boxes = torch.as_tensor(boxes, dtype=torch.float32)
-        labels = torch.as_tensor(labels, dtype=torch.int64)
-        image_id = torch.tensor([idx])
-        area = torch.as_tensor(area)
-
-        target = {}
-        target["labels"] = labels
-        target["boxes"] = boxes
-        target["image_id"] = image_id
-        target["area"] = area
-
-        if self.transform is not None:
-            image, target = self.transform(image, target)
-
-        return image, target
-
-
-
+    def remove_padding(self, boxes, labels):
+        """
+        Removes the -1 padding added so that they have the same dimension and fit into an h5 dataset.
+        """
+        box = np.delete(boxes, np.where(boxes == -1)[0], axis=0)
+        lab = labels[labels != -1]
+        return box, lab
 
 # This part if from the github on cell counting.
 
