@@ -8,7 +8,7 @@ import torchvision
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 from torch.utils.tensorboard import SummaryWriter
 
-from dataset import LabDataset
+from dataset import LabDataset, LabH5Dataset
 from transforms import RandomHorizontalFlip, Compose, GaussianBlur
 
 
@@ -23,21 +23,31 @@ image_dir = str(pathlib.Path.cwd()) + "/data/lab_raw_good"
 label_dir = str(pathlib.Path.cwd()) + "/data/lab_raw_good_labels"
 
 writer = SummaryWriter('runs/Default')
-# writer = SummaryWriter('runs/Test')
 
-# Could add data augmentation here
-transform = Compose([RandomHorizontalFlip(0.5), GaussianBlur(3)])
-dataset = LabDataset(image_dir, label_dir, transform=transform)
-dataset_test = LabDataset(image_dir, label_dir, transform=None)
+# # Could add data augmentation here
+# dataset = LabDataset(image_dir, label_dir, transform=None)
+#
+# # split the dataset in train and test set
+# # train_set, test_set = torch.utils.data.random_split(dataset, [31, 5])
+# test_set = torch.utils.data.Subset(dataset, range(9, 14))
+# #
+# train_loader = torch.utils.data.DataLoader(
+#     dataset, batch_size=4, shuffle=True, num_workers=4, collate_fn=collate_fn)
+# test_loader = torch.utils.data.DataLoader(
+#     test_set, batch_size=4, shuffle=False, num_workers=4, collate_fn=collate_fn)
 
-# split the dataset in train and test set
-# train_set, test_set = torch.utils.data.random_split(dataset, [31, 5])
-test_set = torch.utils.data.Subset(dataset_test, range(9, 14))
+# NEW THINGS
+plate_dataset = {}
+for phase in ["train", "valid"]:
+    plate_dataset[phase] = LabH5Dataset("data/phage_plates/" + phase + ".h5", None)
 
-train_loader = torch.utils.data.DataLoader(
-    dataset, batch_size=4, shuffle=True, num_workers=4, collate_fn=collate_fn)
-test_loader = torch.utils.data.DataLoader(
-    test_set, batch_size=4, shuffle=False, num_workers=4, collate_fn=collate_fn)
+dataloader = {}
+for phase in ["train", "valid"]:
+    dataloader[phase] = torch.utils.data.DataLoader(
+        plate_dataset[phase], batch_size=4, num_workers=4, shuffle=False, collate_fn=collate_fn)
+
+train_loader = dataloader["train"]
+test_loader = dataloader["valid"]
 
 # The model
 # model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
@@ -47,11 +57,9 @@ in_features = model.roi_heads.box_predictor.cls_score.in_features
 # replacing the pre rtained head with a new one
 model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
 model.to(device)
-breakpoint()
 
 # Optimizer
-params = [p for p in model.parameters() if p.requires_grad]
-optimizer = torch.optim.SGD(params, lr=0.01, momentum=0.9, weight_decay=0.0005)
+optimizer = torch.optim.SGD(model.parameters(), lr=0.01, momentum=0.9, weight_decay=0.0005)
 lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1)
 
 
