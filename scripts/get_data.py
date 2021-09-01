@@ -218,7 +218,7 @@ def generate_plate_data():
     os.makedirs(dataset_name, exist_ok=True)
 
     # Shape of the orinial images
-    img_size = (3456, 4608)
+    img_size = (4608, 3456)
     box_size = (20, 4)  # at maximum 20 boxes per images
     label_size = 20  # at maximum 20 labels per images, corresponding to the 20 boxes
     image_list = os.listdir(image_folder)
@@ -245,6 +245,7 @@ def generate_plate_data():
             label_name = image_name.replace(".jpg", ".txt")  # images and label have same name up to extension
 
             image = Image.open(image_folder + image_name)
+            image = image.transpose(Image.ROTATE_270)  # Because PIL consider longest side to be width
             image = np.array(image) / 255
 
             boxes, labels = boxes_from_label_file(label_folder + label_name, *img_size, max_length=label_size)
@@ -252,8 +253,8 @@ def generate_plate_data():
 
             # save data to HDF5 file
             h5['images'][ii] = image
-            h5['boxes'][ii] = boxes
-            h5['labels'][ii] = labels
+            h5['boxes'][ii] = np.array(boxes, dtype=np.float32)
+            h5['labels'][ii] = np.array(labels, dtype=np.int64)
 
     # Split between train and validation
     fill_h5_plate(train_h5, image_list[:train_size])
