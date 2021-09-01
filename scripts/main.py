@@ -17,37 +17,18 @@ def collate_fn(batch):
 
 
 # use the GPU if is_available
-device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-
-image_dir = str(pathlib.Path.cwd()) + "/data/lab_raw_good"
-label_dir = str(pathlib.Path.cwd()) + "/data/lab_raw_good_labels"
-
+device = torch.device('cuda:0' if torch.cuda.is_available() else print("GPU not available"))
 writer = SummaryWriter('runs/Default')
 
-# # Could add data augmentation here
-# dataset = LabDataset(image_dir, label_dir, transform=None)
-#
-# # split the dataset in train and test set
-# # train_set, test_set = torch.utils.data.random_split(dataset, [31, 5])
-# test_set = torch.utils.data.Subset(dataset, range(9, 14))
-# #
-# train_loader = torch.utils.data.DataLoader(
-#     dataset, batch_size=4, shuffle=True, num_workers=4, collate_fn=collate_fn)
-# test_loader = torch.utils.data.DataLoader(
-#     test_set, batch_size=4, shuffle=False, num_workers=4, collate_fn=collate_fn)
-
-# NEW THINGS
+dataset_folder = "data/phage_plates/"
 plate_dataset = {}
 for phase in ["train", "valid"]:
-    plate_dataset[phase] = LabH5Dataset("data/phage_plates/" + phase + ".h5", None)
+    plate_dataset[phase] = LabH5Dataset(dataset_folder + phase + ".h5", None)
 
 dataloader = {}
 for phase in ["train", "valid"]:
     dataloader[phase] = torch.utils.data.DataLoader(
         plate_dataset[phase], batch_size=4, num_workers=4, shuffle=False, collate_fn=collate_fn)
-
-train_loader = dataloader["train"]
-test_loader = dataloader["valid"]
 
 # The model
 # model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
@@ -59,55 +40,50 @@ model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
 model.to(device)
 
 # Optimizer
-optimizer = torch.optim.SGD(model.parameters(), lr=0.01, momentum=0.9, weight_decay=0.0005)
+optimizer = torch.optim.SGD(model.parameters(), lr=1e-2, momentum=0.9, weight_decay=5e-4)
 lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1)
 
 
 num_epochs = 15
-n_iter = 0
 for epoch in range(num_epochs):
-    # train for one epoch, printing every 10 iterations
-    epoch_mean_loss = 0
-
+    print(f"--- Epoch {epoch} ---")
     # Train
     model.train()
-    for ii, (images, targets) in enumerate(train_loader):
+    for ii, (images, targets) in enumerate(dataloader["train"]):
         images = list(image.to(device) for image in images)
         targets = [{key: t[key].to(device) for key in t.keys()} for t in targets]
 
         losses_dict = model(images, targets)
-        losses_sum = sum(loss for loss in losses_dict.values())
-        loss = losses_sum.item()
+        loss_sum = sum(loss for loss in losses_dict.values())
 
-        n_iter += 1
+        # Writting to tensorboard
         for key in losses_dict.keys():
-            writer.add_scalar("Losses/" + key, losses_dict[key], n_iter)
-        writer.add_scalar("Total_loss/train", loss, n_iter)
+            writer.add_scalar("Losses/" + key, losses_dict[key].item(), ii)
+        writer.add_scalar("Total_loss/train", loss_sum.item(), ii)
 
-        if not math.isfinite(loss):
-            print("Loss is {}, stopping training".format(loss))
-            print(losses_dict)
+        if not math.isfinite(loss_sum):
+            print("Loss is {}, stopping training".format(loss_sum.item()))
             sys.exit(1)
+        else:
+            print(f"Image: {ii}    Loss: {loss_sum.item()}")
 
         optimizer.zero_grad()
-        losses_sum.backward()
+        loss_sum.backward()
         optimizer.step()
-
-        print(f"Epoch {epoch}: total loss {loss}")
 
     # Test
     with torch.no_grad():
         test_loss = 0
-        for images, targets in test_loader:
+        for images, targets in dataloader["valid"]:
             images = list(image.to(device) for image in images)
             targets = [{key: t[key].to(device) for key in t.keys()} for t in targets]
 
             losses_dict = model(images, targets)
-            losses_sum = sum(loss for loss in losses_dict.values())
-            loss = losses_sum.item()
-            test_loss += loss
-        test_loss = test_loss / len(test_set)
-        writer.add_scalar("Total_loss/test", test_loss, (epoch + 1) * len(dataset))
+            loss_sum = sum(loss for loss in losses_dict.values())
+            test_loss += loss_sum.item()
+
+        test_loss = test_loss / len(plate_dataset["valid"])
+        writer.add_scalar("Total_loss/test", test_loss, epoch)
 
     # update the learning rate
     lr_scheduler.step()
