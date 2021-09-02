@@ -1,53 +1,51 @@
 import os
 import sys
+import pathlib
 import numpy as np
-import matplotlib.pyplot as plt
 import torch
+import torchvision
+from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 from torch.utils.tensorboard import SummaryWriter
+import utils
 
-from dataset import H5Dataset
-from utils import plot_image_dot
-from model import UNet
-from looper import Looper
-from transforms import Compose, CounterRandomHorizontalFlip, CounterRandomVerticalFlip
+from dataset import LabDataset, LabH5Dataset
 
 
-Phage_colonies_folder = "data/phage_colonies/"
-device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+def collate_fn(batch):
+    return tuple(zip(*batch))
 
-# It uses the transforms
-transform = Compose([CounterRandomHorizontalFlip(0.5), CounterRandomVerticalFlip(0.5)])
 
-phage_colonies_dataset = {}
+# use the GPU if is_available
+device = torch.device('cuda:0' if torch.cuda.is_available() else print("GPU not available"))
+cpu_device = torch.device("cpu")
+writer = SummaryWriter('runs/Original')
+
+dataset_folder = "data/phage_plates/"
+plate_dataset = {}
 for phase in ["train", "valid"]:
-    phage_colonies_dataset[phase] = H5Dataset(Phage_colonies_folder + phase + ".h5", transform)
+    plate_dataset[phase] = LabH5Dataset(dataset_folder + phase + ".h5", None)
 
 dataloader = {}
 for phase in ["train", "valid"]:
     dataloader[phase] = torch.utils.data.DataLoader(
-        phage_colonies_dataset[phase], batch_size=6, num_workers=6)
+        plate_dataset[phase], batch_size=4, num_workers=4, shuffle=False, collate_fn=collate_fn)
 
-writer = SummaryWriter('runs/Phage_colonies_pretrained')
+image_dir = str(pathlib.Path.cwd()) + "/data/lab_raw_good"
+label_dir = str(pathlib.Path.cwd()) + "/data/lab_raw_good_labels"
+dataset = LabDataset(image_dir, label_dir, transform=None)
 
-network = UNet().to(device)
-network.load_state_dict(torch.load("model_saves/Counter_original.pt"))
-# network.eval()
+dataloader2 = {}
+dataloader2["train"] = torch.utils.data.DataLoader(
+    dataset, batch_size=4, shuffle=True, num_workers=4, collate_fn=collate_fn)
 
-loss = torch.nn.MSELoss()
-optimizer = torch.optim.SGD(network.parameters(), lr=1e-2, momentum=0.9, weight_decay=1e-5)
-lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.1)
 
-train_looper = Looper(network, device, loss, optimizer,
-                      dataloader["train"], len(phage_colonies_dataset["train"]), writer)
-valid_looper = Looper(network, device, loss, optimizer,
-                      dataloader["valid"], len(phage_colonies_dataset["valid"]), writer, validation=True)
+image_original, target_original = iter(dataloader2["train"]).next()
+image_new, target_new = iter(dataloader["train"]).next()
 
-for epoch in range(50):
-    print(f"Epoch: {epoch}")
-    train_looper.run()
-    with torch.no_grad():
-        valid_looper.run()
-    lr_scheduler.step()
+image_original = image_original[0]
+target_original = target_original[0]
+image_new = image_new[0]
+target_new = target_new[0]
 
-# Saving
-# torch.save(network.state_dict(), "model_saves/Counter_original.pt")
+utils.plot_image_target(image_original, target_original)
+utils.plot_image_target(image_new, target_new)
