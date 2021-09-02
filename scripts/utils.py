@@ -1,4 +1,6 @@
 import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle
+from matplotlib.collections import PatchCollection
 import numpy as np
 
 
