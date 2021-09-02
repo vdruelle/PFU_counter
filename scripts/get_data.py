@@ -221,7 +221,7 @@ def generate_plate_data():
     img_size = (4608, 3456)
     box_size = (20, 4)  # at maximum 20 boxes per images
     label_size = 20  # at maximum 20 labels per images, corresponding to the 20 boxes
-    image_list = os.listdir(image_folder)
+    image_list = list(sorted(os.listdir(image_folder)))
     valid_size = 6
     train_size = len(image_list) - valid_size
 
@@ -249,7 +249,6 @@ def generate_plate_data():
             image = np.array(image) / 255
 
             boxes, labels = boxes_from_label_file(label_folder + label_name, *img_size, max_length=label_size)
-            # breakpoint()
 
             # save data to HDF5 file
             h5['images'][ii] = image
@@ -264,7 +263,7 @@ def generate_plate_data():
     valid_h5.close()
 
 
-def boxes_from_label_file(label_file, image_width, image_height, max_length, pad_value=-1):
+def boxes_from_label_file(label_file, image_height, image_width, max_length, pad_value=-1):
     """
     Returns labels and boxes as lists, as expected by the RCNN network. Pad with -1 to max length to get
     constant output sizes.
