@@ -3,6 +3,8 @@ from typing import Tuple
 
 import torch
 from torch import nn
+from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
+import torchvision
 
 
 def conv_block(channels: Tuple[int, int],
@@ -129,7 +131,27 @@ class UNet(nn.Module):
         return self.density_pred(block7)
 
 
+def PlateDetector(num_classes=4, backbone="mobilenet", trainable_backbone_layers=0):
+    """
+    Creates and returns the network for plate element detection with the given number of classes and the
+    chosen backbone.
+    num_classes should be the number of labels possible + 1 (the background)/
+    """
+    assert backbone in ["mobilenet", "resnet"]
+
+    if backbone == "mobilenet":
+        model = torchvision.models.detection.fasterrcnn_mobilenet_v3_large_fpn(pretrained=True)
+    elif backbone == "resnet":
+        model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
+
+    in_features = model.roi_heads.box_predictor.cls_score.in_features
+    # replacing the pre rtained head with a new one
+    model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
+    return model
+
+
 # --- TESTS --- #
+
 
 def run_network(network: nn.Module, input_channels: int):
     """Generate a random image, run through network, and check output size."""

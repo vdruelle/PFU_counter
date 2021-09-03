@@ -82,9 +82,9 @@ class LabH5Dataset(data.Dataset):
         # Removing the padding with -1
         boxes, labels = self.remove_padding(self.boxes[index], self.labels[index])
 
-        # TODO
         if self.transform is not None:
-            return self.transform(self.images[index], boxes), labels
+            labels = labels.astype(np.int64)
+            return self.transform(self.images[index], {"boxes": boxes, "labels": labels})
         else:
             boxes = torch.tensor(boxes, dtype=torch.float32)
             labels = torch.tensor(labels, dtype=torch.int64)
