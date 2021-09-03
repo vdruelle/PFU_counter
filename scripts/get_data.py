@@ -11,6 +11,7 @@ import numpy as np
 from PIL import Image
 from scipy.ndimage import gaussian_filter
 import pandas as pd
+import random
 
 
 def create_hdf5(dataset_name: str,
@@ -224,6 +225,8 @@ def generate_plate_data():
     image_list = list(sorted(os.listdir(image_folder)))
     valid_size = 6
     train_size = len(image_list) - valid_size
+    valid_list = random.choices(image_list, k=valid_size)
+    train_list = [im for im in image_list if im not in valid_list]
 
     # create HDF5 files: [dataset_name]/(train | valid).h5
     train_h5 = h5py.File(os.path.join(dataset_name, 'train.h5'), 'w')
@@ -256,8 +259,8 @@ def generate_plate_data():
             h5['labels'][ii] = np.array(labels, dtype=np.int64)
 
     # Split between train and validation
-    fill_h5_plate(train_h5, image_list[:train_size])
-    fill_h5_plate(valid_h5, image_list[train_size:])
+    fill_h5_plate(train_h5, train_list)
+    fill_h5_plate(valid_h5, valid_list)
 
     train_h5.close()
     valid_h5.close()
