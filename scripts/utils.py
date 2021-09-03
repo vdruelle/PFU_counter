@@ -5,15 +5,24 @@ import numpy as np
 
 
 def plot_image_target(image, target):
+    colors = ["C0", "C1", "C2", "C3", "C4"]
     plt.figure(figsize=(14, 10))
     image = image.cpu().numpy().transpose((1, 2, 0))
     plt.imshow(image)
 
-    boxes = []
-    for box in target["boxes"]:
-        boxes += [Rectangle((box[0], box[1]), box[2] - box[0], box[3] - box[1])]
-    pc = PatchCollection(boxes, facecolor="none", edgecolor="blue", alpha=0.5)
-    plt.gca().add_collection(pc)
+    # boxes = []
+    for ii, box in enumerate(target["boxes"]):
+        plt.gca().add_patch(Rectangle((box[0], box[1]), box[2] - box[0], box[3] - box[1],
+                                      facecolor="none",
+                                      edgecolor=colors[target["labels"][ii].item()],
+                                      alpha=0.5))
+        # boxes += [Rectangle((box[0], box[1]), box[2] - box[0], box[3] -
+        #                     box[1], facecolor=None, edgecolor=colors[target["labels"][ii].item()])]
+        if "scores" in target.keys():
+            plt.text(box[0], box[1], round(target["scores"][ii].item(), 2),
+                     color=colors[target["labels"][ii].item()])
+    # pc = PatchCollection(boxes)
+    # plt.gca().add_collection(pc)
     # plt.show()
 
 
