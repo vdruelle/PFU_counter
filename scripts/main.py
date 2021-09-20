@@ -7,7 +7,7 @@ import math
 import torch
 import torchvision
 from torch.utils.tensorboard import SummaryWriter
-from torch.nn.functional import l1_loss
+from torch.nn.functional import mse_loss
 
 from dataset import LabDataset, LabH5Dataset
 from transforms import PlateAlbumentation
@@ -24,29 +24,29 @@ def train_plate_detection():
     Train a FasterRCNN to do plate element detection using the LabH5Dataset.
     """
     device = torch.device('cuda:0' if torch.cuda.is_available() else print("GPU not available"))
-    writer = SummaryWriter('runs/PlateDetector_Albu_2')
+    writer = SummaryWriter('runs/PlateDector_Albu_0_newloss')
 
     dataset_folder = "data/phage_plates/"
     plate_dataset = {}
     for phase in ["train", "valid"]:
         plate_dataset[phase] = LabH5Dataset(dataset_folder + phase + ".h5",
-                                            PlateAlbumentation(2) if phase == "train" else None)
+                                            PlateAlbumentation(0) if phase == "train" else None)
 
     dataloader = {}
     for phase in ["train", "valid"]:
         dataloader[phase] = torch.utils.data.DataLoader(
-            plate_dataset[phase], batch_size=4, num_workers=6,
+            plate_dataset[phase], batch_size=2, num_workers=4,
             shuffle=(phase == "train"), collate_fn=collate_fn)
 
     # The model
-    model = PlateDetector(num_classes=5, backbone="mobilenet", trainable_backbone_layers=None)
+    model = PlateDetector(num_classes=4, backbone="mobilenet", trainable_backbone_layers=None)
     model.to(device)
 
     # Optimizer
     optimizer = torch.optim.SGD(model.parameters(), lr=1e-2, momentum=0.9, weight_decay=5e-4)
-    lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=30, gamma=0.1)
+    lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=25, gamma=0.1)
 
-    num_epochs = 50
+    num_epochs = 60
     n_iter = 0
     for epoch in range(num_epochs):
         print(f"--- Epoch {epoch} ---")
@@ -126,7 +126,7 @@ def predict_plate():
     plt.show()
 
 
-def compute_validation_errors(predictions, targets):
+def compute_old_validation_errors(predictions, targets):
     """
     Computes a simple validation error and returns it. Basically it takes every prediction and computes an L1
     loss to the corresponding target, weighted by the attributed score.
@@ -141,12 +141,12 @@ def compute_validation_errors(predictions, targets):
             if prediction["labels"][ii] == 1:  # plate name label id
                 tbox = target["boxes"][target["labels"] == 1][0]
                 weight = prediction["scores"][ii]
-                error += l1_loss(prediction["boxes"][ii], tbox) * weight
+                error += mse_loss(prediction["boxes"][ii], tbox) * weight
             # Error for phage names
             if prediction["labels"][ii] == 2:  # phage names label id
                 tbox = target["boxes"][target["labels"] == 2][0]
                 weight = prediction["scores"][ii]
-                error += l1_loss(prediction["boxes"][ii], tbox) * weight
+                error += mse_loss(prediction["boxes"][ii], tbox) * weight
             # Error for phage columns
             if prediction["labels"][ii] == 3:  # phage columns label id
                 tboxes = target["boxes"][target["labels"] == 3]
@@ -155,6 +155,34 @@ def compute_validation_errors(predictions, targets):
                 losses = torch.abs(tboxes - pred).sum(dim=1)
                 weight = prediction["scores"][ii]
                 error += losses.min() * weight  # select the target column that corresponds most
+    return error
+
+
+def compute_validation_errors(predictions, targets):
+    error = 0
+    for prediction, target in zip(predictions, targets):
+        # For plate name
+        idxs_plate_name = torch.where(prediction["labels"] == 1)[0]
+        idx = torch.argmax(prediction["scores"][idxs_plate_name])
+        tbox = target["boxes"][target["labels"] == 1][0]
+        pbox = prediction["boxes"][idxs_plate_name[idx]]
+        error += 1 - torchvision.ops.generalized_box_iou(pbox.unsqueeze(0), tbox.unsqueeze(0))
+
+        # For phage names
+        idxs_phage_names = torch.where(prediction["labels"] == 2)[0]
+        idx = torch.argmax(prediction["scores"][idxs_phage_names])
+        tbox = target["boxes"][target["labels"] == 2][0]
+        pbox = prediction["boxes"][idxs_phage_names[idx]]
+        error += 1 - torchvision.ops.generalized_box_iou(pbox.unsqueeze(0), tbox.unsqueeze(0))
+
+        # For phage columns
+        idxs_phage_columns = torch.where(prediction["labels"] == 3)[0]
+        tboxes = target["boxes"][target["labels"] == 3]
+        pboxes = prediction["boxes"][idxs_phage_columns]
+        # This step removes boxes of lower score that overlap by more than 25% with a higher score box
+        pboxes = pboxes[torchvision.ops.nms(pboxes, prediction["scores"][idxs_phage_columns], 0.25)]
+        error += torch.sum(1 - torchvision.ops.generalized_box_iou(pboxes, tboxes).max(dim=1)[0])
+
     return error
 
 
