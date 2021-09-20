@@ -156,7 +156,7 @@ class PlateAlbumentation(object):
             transform = A.Compose(
                 [
                     A.HorizontalFlip(p=0.5),
-                    A.Rotate(limit=10),
+                    A.Rotate(limit=5),
                     ToTensorV2()
                 ],
                 bbox_params=A.BboxParams(format='pascal_voc', label_fields=['class_labels']))
@@ -164,7 +164,7 @@ class PlateAlbumentation(object):
             transform = A.Compose(
                 [
                     A.HorizontalFlip(p=0.5),
-                    A.Rotate(limit=10),
+                    A.Rotate(limit=5),
                     A.RandomBrightnessContrast(),
                     ToTensorV2()
                 ],
@@ -173,7 +173,7 @@ class PlateAlbumentation(object):
             transform = A.Compose(
                 [
                     A.HorizontalFlip(p=0.5),
-                    A.Rotate(limit=10),
+                    A.Rotate(limit=5),
                     A.RandomBrightnessContrast(),
                     A.GaussianBlur(blur_limit=(3, 21), p=0.5),
                     ToTensorV2()
