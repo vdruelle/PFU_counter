@@ -24,13 +24,13 @@ def train_plate_detection():
     Train a FasterRCNN to do plate element detection using the LabH5Dataset.
     """
     device = torch.device('cuda:0' if torch.cuda.is_available() else print("GPU not available"))
-    writer = SummaryWriter('runs/PlateDector_Albu_0_newloss')
+    writer = SummaryWriter('runs/Test')
 
     dataset_folder = "data/phage_plates/"
     plate_dataset = {}
     for phase in ["train", "valid"]:
         plate_dataset[phase] = LabH5Dataset(dataset_folder + phase + ".h5",
-                                            PlateAlbumentation(0) if phase == "train" else None)
+                                            PlateAlbumentation(1) if phase == "train" else None)
 
     dataloader = {}
     for phase in ["train", "valid"]:
@@ -159,6 +159,9 @@ def compute_old_validation_errors(predictions, targets):
 
 
 def compute_validation_errors(predictions, targets):
+    """
+    Validation error computed using Intersection over Union loss.
+    """
     error = 0
     for prediction, target in zip(predictions, targets):
         # For plate name
@@ -180,12 +183,20 @@ def compute_validation_errors(predictions, targets):
         tboxes = target["boxes"][target["labels"] == 3]
         pboxes = prediction["boxes"][idxs_phage_columns]
         # This step removes boxes of lower score that overlap by more than 25% with a higher score box
-        pboxes = pboxes[torchvision.ops.nms(pboxes, prediction["scores"][idxs_phage_columns], 0.25)]
+        pboxes = cleanup_boxes(pboxes, prediction["scores"][idxs_phage_columns], 0.25)
         error += torch.sum(1 - torchvision.ops.generalized_box_iou(pboxes, tboxes).max(dim=1)[0])
 
     return error
 
 
+def cleanup_boxes(boxes, scores, threshold=0.25):
+    """
+    Removes boxes that overlap by more than the threshold to a higher scoring box.
+    """
+    cleaned_boxes = boxes[torchvision.ops.nms(boxes, scores, threshold)]
+    return cleaned_boxes
+
+
 if __name__ == '__main__':
-    train_plate_detection()
-    # predict_plate()
+    # train_plate_detection()
+    predict_plate()
