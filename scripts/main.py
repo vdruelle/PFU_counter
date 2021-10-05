@@ -35,7 +35,7 @@ def train_plate_detection():
     dataloader = {}
     for phase in ["train", "valid"]:
         dataloader[phase] = torch.utils.data.DataLoader(
-            plate_dataset[phase], batch_size=4, num_workers=4,
+            plate_dataset[phase], batch_size=4, num_workers=6,
             shuffle=(phase == "train"), collate_fn=collate_fn)
 
     # The model
@@ -194,5 +194,5 @@ def compute_validation_errors(predictions, targets):
 
 
 if __name__ == '__main__':
-    # train_plate_detection()
-    predict_plate()
+    train_plate_detection()
+    # predict_plate()
