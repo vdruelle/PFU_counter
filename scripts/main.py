@@ -188,7 +188,6 @@ def compute_validation_errors(predictions, targets):
         error += torch.sum(1 - torchvision.ops.generalized_box_iou(pboxes, tboxes).max(dim=0)[0])
         breakpoint()
 
-
     return error
 
 
