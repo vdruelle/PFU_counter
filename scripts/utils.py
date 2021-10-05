@@ -10,7 +10,10 @@ def plot_plate_detector(image, target):
     image = image.cpu().numpy().transpose((1, 2, 0))
     plt.imshow(image)
 
-    idxs = batch_cleanup_boxes(target["boxes"], target["scores"], target["labels"])
+    if "scores" in target.keys():
+        idxs = batch_cleanup_boxes(target["boxes"], target["scores"], target["labels"])
+    else:
+        idxs = range(len(target["boxes"]))
 
     for ii in idxs:
         box = target["boxes"][ii]
