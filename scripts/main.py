@@ -11,7 +11,6 @@ from torch.nn.functional import mse_loss
 
 from dataset import LabDataset, LabH5Dataset
 from transforms import PlateAlbumentation
-from utils import plot_image_target
 from model import PlateDetector
 import utils
 
@@ -123,7 +122,7 @@ def predict_plate():
 
             outputs = model(images)
             outputs = [{k: v.cpu() for k, v in t.items()} for t in outputs]
-            plot_image_target(images[0], outputs[0])
+            utils.plot_plate_detector(images[0], outputs[0])
     plt.show()
 
 
@@ -185,11 +184,14 @@ def compute_validation_errors(predictions, targets):
         pboxes = prediction["boxes"][idxs_phage_columns]
         # This step removes boxes of lower score that overlap by more than 25% with a higher score box
         pboxes = utils.cleanup_boxes(pboxes, prediction["scores"][idxs_phage_columns], 0.25)
-        error += torch.sum(1 - torchvision.ops.generalized_box_iou(pboxes, tboxes).max(dim=1)[0])
+        # Takes the best box for each target box, and compute the IoU error between each pair
+        error += torch.sum(1 - torchvision.ops.generalized_box_iou(pboxes, tboxes).max(dim=0)[0])
+        breakpoint()
+
 
     return error
 
 
 if __name__ == '__main__':
-    # train_plate_detection()
-    predict_plate()
+    train_plate_detection()
+    # predict_plate()

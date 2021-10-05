@@ -1,11 +1,10 @@
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 import numpy as np
-import torch
 import torchvision
 
 
-def plot_image_target(image, target):
+def plot_plate_detector(image, target):
     colors = ["C0", "C1", "C2", "C3", "C4"]
     plt.figure(figsize=(14, 10))
     image = image.cpu().numpy().transpose((1, 2, 0))
