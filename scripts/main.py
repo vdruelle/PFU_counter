@@ -24,13 +24,13 @@ def train_plate_detection():
     Train a FasterRCNN to do plate element detection using the LabH5Dataset.
     """
     device = torch.device('cuda:0' if torch.cuda.is_available() else print("GPU not available"))
-    writer = SummaryWriter('runs/Test')
+    writer = SummaryWriter('runs/PlateDetector_Albu_4')
 
     dataset_folder = "data/phage_plates/"
     plate_dataset = {}
     for phase in ["train", "valid"]:
         plate_dataset[phase] = LabH5Dataset(dataset_folder + phase + ".h5",
-                                            PlateAlbumentation(0) if phase == "train" else None)
+                                            PlateAlbumentation(4) if phase == "train" else None)
 
     dataloader = {}
     for phase in ["train", "valid"]:
@@ -166,30 +166,33 @@ def compute_validation_errors(predictions, targets):
     for prediction, target in zip(predictions, targets):
         # For plate name
         idxs_plate_name = torch.where(prediction["labels"] == 1)[0]
-        idx = torch.argmax(prediction["scores"][idxs_plate_name])
-        tbox = target["boxes"][target["labels"] == 1][0]
-        pbox = prediction["boxes"][idxs_plate_name[idx]]
-        error += 1 - torchvision.ops.generalized_box_iou(pbox.unsqueeze(0), tbox.unsqueeze(0))
+        if idxs_plate_name.shape[0] != 0:
+            idx = torch.argmax(prediction["scores"][idxs_plate_name])
+            tbox = target["boxes"][target["labels"] == 1][0]
+            pbox = prediction["boxes"][idxs_plate_name[idx]]
+            error += 1 - torchvision.ops.generalized_box_iou(pbox.unsqueeze(0), tbox.unsqueeze(0))
 
         # For phage names
         idxs_phage_names = torch.where(prediction["labels"] == 2)[0]
-        idx = torch.argmax(prediction["scores"][idxs_phage_names])
-        tbox = target["boxes"][target["labels"] == 2][0]
-        pbox = prediction["boxes"][idxs_phage_names[idx]]
-        error += 1 - torchvision.ops.generalized_box_iou(pbox.unsqueeze(0), tbox.unsqueeze(0))
+        if idxs_phage_names.shape[0] != 0:
+            idx = torch.argmax(prediction["scores"][idxs_phage_names])
+            tbox = target["boxes"][target["labels"] == 2][0]
+            pbox = prediction["boxes"][idxs_phage_names[idx]]
+            error += 1 - torchvision.ops.generalized_box_iou(pbox.unsqueeze(0), tbox.unsqueeze(0))
 
         # For phage columns
         idxs_phage_columns = torch.where(prediction["labels"] == 3)[0]
-        tboxes = target["boxes"][target["labels"] == 3]
-        pboxes = prediction["boxes"][idxs_phage_columns]
-        # This step removes boxes of lower score that overlap by more than 25% with a higher score box
-        pboxes = utils.cleanup_boxes(pboxes, prediction["scores"][idxs_phage_columns], 0.25)
-        # Takes the best box for each target box, and compute the IoU error between each pair
-        error += torch.sum(1 - torchvision.ops.generalized_box_iou(pboxes, tboxes).max(dim=0)[0])
+        if idxs_phage_columns.shape[0] != 0:
+            tboxes = target["boxes"][target["labels"] == 3]
+            pboxes = prediction["boxes"][idxs_phage_columns]
+            # This step removes boxes of lower score that overlap by more than 25% with a higher score box
+            pboxes = utils.cleanup_boxes(pboxes, prediction["scores"][idxs_phage_columns], 0.25)
+            # Takes the best box for each target box, and compute the IoU error between each pair
+            error += torch.sum(1 - torchvision.ops.generalized_box_iou(pboxes, tboxes).max(dim=0)[0])
 
     return error
 
 
 if __name__ == '__main__':
-    train_plate_detection()
-    # predict_plate()
+    # train_plate_detection()
+    predict_plate()
