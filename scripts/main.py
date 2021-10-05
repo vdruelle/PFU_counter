@@ -13,6 +13,7 @@ from dataset import LabDataset, LabH5Dataset
 from transforms import PlateAlbumentation
 from utils import plot_image_target
 from model import PlateDetector
+import utils
 
 
 def collate_fn(batch):
@@ -183,18 +184,10 @@ def compute_validation_errors(predictions, targets):
         tboxes = target["boxes"][target["labels"] == 3]
         pboxes = prediction["boxes"][idxs_phage_columns]
         # This step removes boxes of lower score that overlap by more than 25% with a higher score box
-        pboxes = cleanup_boxes(pboxes, prediction["scores"][idxs_phage_columns], 0.25)
+        pboxes, _, _ = utils.cleanup_boxes(pboxes, prediction["scores"][idxs_phage_columns], 0.25)
         error += torch.sum(1 - torchvision.ops.generalized_box_iou(pboxes, tboxes).max(dim=1)[0])
 
     return error
-
-
-def cleanup_boxes(boxes, scores, threshold=0.25):
-    """
-    Removes boxes that overlap by more than the threshold to a higher scoring box.
-    """
-    cleaned_boxes = boxes[torchvision.ops.nms(boxes, scores, threshold)]
-    return cleaned_boxes
 
 
 if __name__ == '__main__':
