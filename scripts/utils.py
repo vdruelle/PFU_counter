@@ -11,23 +11,6 @@ def plot_image_target(image, target):
     image = image.cpu().numpy().transpose((1, 2, 0))
     plt.imshow(image)
 
-    # Filtering lox quality overlapping boxes
-    # idxs_columns = torch.where(target["labels"] == 3)[0]
-    # _, _, idxs = cleanup_boxes(target["boxes"][idxs_columns], target["scores"][idxs_columns], 0.25)
-    # idxs_cleaned = idxs_columns[idxs]
-    # idxs = torch.where(target["labels"] == 1)[0].tolist() + \
-    #     torch.where(target["labels"] == 2)[0].tolist() + idxs_cleaned.tolist()
-    #
-    # for ii in idxs:
-    #     box = target["boxes"][ii]
-    #     plt.gca().add_patch(Rectangle((box[0], box[1]), box[2] - box[0], box[3] - box[1],
-    #                                   facecolor="none",
-    #                                   edgecolor=colors[target["labels"][ii].item()],
-    #                                   alpha=0.5))
-    #     if "scores" in target.keys():
-    #         plt.text(box[0], box[1], round(target["scores"][ii].item(), 2),
-    #                  color=colors[target["labels"][ii].item()])
-
     idxs = batch_cleanup_boxes(target["boxes"], target["scores"], target["labels"])
 
     for ii in idxs:
@@ -57,10 +40,7 @@ def cleanup_boxes(boxes, scores, threshold=0.25):
     """
     Removes boxes that overlap by more than the threshold to a higher scoring box.
     """
-    idxs = torchvision.ops.nms(boxes, scores, threshold)
-    cleaned_boxes = boxes[idxs]
-    cleaned_scores = scores[idxs]
-    return cleaned_boxes, cleaned_scores, idxs
+    return boxes[torchvision.ops.nms(boxes, scores, threshold)]
 
 
 def batch_cleanup_boxes(boxes, scores, labels, threshold=0.25):
