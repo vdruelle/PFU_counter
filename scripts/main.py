@@ -30,12 +30,12 @@ def train_plate_detection():
     plate_dataset = {}
     for phase in ["train", "valid"]:
         plate_dataset[phase] = LabH5Dataset(dataset_folder + phase + ".h5",
-                                            PlateAlbumentation(1) if phase == "train" else None)
+                                            PlateAlbumentation(0) if phase == "train" else None)
 
     dataloader = {}
     for phase in ["train", "valid"]:
         dataloader[phase] = torch.utils.data.DataLoader(
-            plate_dataset[phase], batch_size=2, num_workers=4,
+            plate_dataset[phase], batch_size=4, num_workers=4,
             shuffle=(phase == "train"), collate_fn=collate_fn)
 
     # The model
@@ -186,7 +186,6 @@ def compute_validation_errors(predictions, targets):
         pboxes = utils.cleanup_boxes(pboxes, prediction["scores"][idxs_phage_columns], 0.25)
         # Takes the best box for each target box, and compute the IoU error between each pair
         error += torch.sum(1 - torchvision.ops.generalized_box_iou(pboxes, tboxes).max(dim=0)[0])
-        breakpoint()
 
     return error
 
