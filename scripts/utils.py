@@ -5,13 +5,17 @@ import torchvision
 
 
 def plot_plate_detector(image, target):
+    """
+    Takes in torch tensor (on gpu) and plots the predictions of the network.
+    """
     colors = ["C0", "C1", "C2", "C3", "C4"]
     plt.figure(figsize=(14, 10))
     image = image.cpu().numpy().transpose((1, 2, 0))
+    target = {k: v.cpu() for k, v in target.items()}
     plt.imshow(image)
 
     if "scores" in target.keys():
-        idxs = batch_cleanup_boxes(target["boxes"], target["scores"], target["labels"])
+        idxs = batch_cleanup_boxes(target["boxes"], target["scores"], target["labels"], 0.15)
     else:
         idxs = range(len(target["boxes"]))
 
@@ -78,3 +82,16 @@ def plot_counter_albu(image, label, raw_image, raw_label):
     axs[1, 1].set_xlabel(f"Real: {round(np.sum(raw_label)/1000)}   Estimated: {round(np.sum(label)/1000)}")
     plt.tight_layout()
     # plt.show()
+
+
+def load_image_from_file(path):
+    """
+    Loads an image from the given path and rotate it so that plt.imshow shows it in the correct manner.
+    It also normalizes the image to be in the range [0,1] for each value.
+    Returns the image as a numpy array of shape [height, width, color_channels].
+    """
+    from PIL import Image
+    image = Image.open(path)
+    image = image.transpose(Image.ROTATE_270)  # Because PIL consider longest side to be width
+    image = np.array(image) / 255
+    return image
