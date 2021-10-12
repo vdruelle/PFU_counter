@@ -184,15 +184,55 @@ class PlateAlbumentation(object):
             transform = A.Compose(
                 [
                     A.HorizontalFlip(p=0.5),
-                    A.Rotate(limit=2),
+                    A.Rotate(limit=2),  # 62ms
                     A.RandomBrightnessContrast(),
                     A.OneOf([A.GaussianBlur(blur_limit=(3, 21), p=0.5),
-                             A.GaussNoise(0.1, p=0.5)]),
-                    A.OneOf([A.RandomShadow(shadow_roi=(0, 0, 1, 1)),
-                             A.HueSaturationValue(20, 0.2, 0.1)]),
+                             A.GaussNoise(0.1, p=0.5),
+                             A.MultiplicativeNoise([0.5, 1.5], elementwise=True, p=1)]),
+                    A.HueSaturationValue(20, 0.2, 0.1),
                     ToTensorV2()
                 ],
                 bbox_params=A.BboxParams(format='pascal_voc', label_fields=['class_labels']))
+        if self.mode == 5:
+            transform = A.Compose(
+                [
+                    A.HorizontalFlip(p=0.5),  # 50ms
+                    A.RandomBrightnessContrast(),  # 183ms
+                    A.OneOf([A.GaussianBlur(blur_limit=(3, 21), p=0.5),  # 105ms
+                             A.GaussNoise(0.1, p=0.5),  # 1266ms
+                             A.MultiplicativeNoise([0.5, 1.5], elementwise=True, p=0.5)]),  # 460ms
+                    A.HueSaturationValue(20, 0.2, 0.1),  # 494ms
+                    A.RandomShadow(shadow_roi=(0, 0, 1, 1)),  # 186ms
+                    ToTensorV2()  # 34ms
+                ],
+                bbox_params=A.BboxParams(format='pascal_voc', label_fields=['class_labels']))
+        if self.mode == 6:
+            transform = A.Compose(
+                [
+                    A.HorizontalFlip(p=0.5),  # 50ms
+                    A.Rotate(limit=2),
+                    A.RandomBrightnessContrast(),  # 183ms
+                    A.OneOf([A.GaussianBlur(blur_limit=(3, 21), p=0.5),  # 105ms
+                             A.GaussNoise(0.1, p=0.5),  # 1266ms
+                             A.MultiplicativeNoise([0.5, 1.5], elementwise=True, p=0.5)]),  # 460ms
+                    A.HueSaturationValue(20, 0.2, 0.1),  # 494ms
+                    A.RandomShadow(shadow_roi=(0, 0, 1, 1)),  # 186ms
+                    ToTensorV2()  # 34ms
+                ],
+                bbox_params=A.BboxParams(format='pascal_voc', label_fields=['class_labels']))
+        if self.mode == 7:
+            transform = A.Compose(
+                [
+                    A.HorizontalFlip(p=0.5),  # 50ms
+                    A.Rotate(limit=2),
+                    A.RandomBrightnessContrast(),  # 183ms
+                    A.GaussianBlur(blur_limit=(3, 21), p=0.5),  # 105ms
+                    A.HueSaturationValue(20, 0.2, 0.1),  # 494ms
+                    A.RandomShadow(shadow_roi=(0, 0, 1, 1)),  # 186ms
+                    ToTensorV2()  # 34ms
+                ],
+                bbox_params=A.BboxParams(format='pascal_voc', label_fields=['class_labels']))
+
         transformed = transform(image=image, bboxes=target["boxes"], class_labels=target["labels"])
         return transformed["image"], {"boxes": torch.tensor(transformed["bboxes"], dtype=torch.float32),
                                       "labels": torch.tensor(transformed["class_labels"], dtype=torch.int64)}
@@ -220,8 +260,8 @@ if __name__ == '__main__':
     #     axs[1].set_xlabel(f"{translab.sum()} {true}")
     # plt.show()
 
-    dataset = LabH5Dataset("data/phage_plates/train.h5", PlateAlbumentation(mode=5))
-    for ii in range(10):
+    dataset = LabH5Dataset("data/phage_plates/train.h5", PlateAlbumentation(mode=6))
+    for ii in range(5):
         image, target = dataset.__getitem__(0)
         utils.plot_plate_detector(image, target)
     plt.show()
