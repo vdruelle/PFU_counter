@@ -4,6 +4,7 @@ the resulting dilutions
 """
 import torch
 import numpy as np
+import matplotlib.pyplot as plt
 
 import utils
 from model import PlateDetector
@@ -41,6 +42,28 @@ if __name__ == '__main__':
     image_path = "data/lab_raw_good/20200204_115135.jpg"
     show_intermediate = True
 
-    image, output = plate_detection(image_path, plate_detector_save)
+    # --- Plate detection part ---
+    image, detector_output = plate_detection(image_path, plate_detector_save)
+    idxs = utils.batch_cleanup_boxes(
+        detector_output["boxes"], detector_output["scores"], detector_output["labels"], 0.15)
+    detector_output_cleaned = {k: v[idxs] for k, v in detector_output.items()}
     if show_intermediate:
-        utils.plot_plate_detector(image, output)
+        utils.plot_plate_detector(image, detector_output)
+
+    # --- Extraction of images from box detection ---
+    detector_images = {}
+    sub_images = []
+    for ii in range(detector_output_cleaned["labels"].shape[0]):
+        box = torch.round(detector_output_cleaned["boxes"][ii]).type(torch.int32)
+        sub_images += [image[:, box[1]:box[3], box[0]:box[2]]]
+
+    detector_images["plate_name"] = sub_images[torch.where(detector_output_cleaned["labels"] == 1)[0]]
+    detector_images["phage_names"] = sub_images[torch.where(detector_output_cleaned["labels"] == 2)[0]]
+    detector_images["phage_columns"] = []
+    for ii in torch.where(detector_output_cleaned["labels"] == 3)[0].tolist():
+        detector_images["phage_columns"] += [sub_images[ii]]
+
+    # for image in detector_images["phage_columns"]:
+    #     image = image.cpu().numpy().transpose((1, 2, 0))
+    #     plt.figure()
+    #     plt.imshow(image)
