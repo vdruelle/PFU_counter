@@ -69,44 +69,72 @@ if __name__ == '__main__':
     mean_column_width = np.mean(column_width)
 
     # --- Extraction of spot from phage columns according to grayscale histogram
-    # for image in detector_images["phage_columns"]:
-    image = detector_images["phage_columns"][0]
-    image = image.cpu().numpy().transpose((2, 1, 0))
-    image = np.sum(image, axis=2)
-    image = scipy.ndimage.gaussian_filter(image, 25)
-    plt.figure()
-    plt.imshow(image, cmap="gray")
-    print(image.shape[1] / image.shape[0])
+    for image in detector_images["phage_columns"]:
+        # image = detector_images["phage_columns"][0]
+        image = image.cpu().numpy().transpose((2, 1, 0))
+        image = np.sum(image, axis=2)
+        # plt.figure()
+        # plt.imshow(image, cmap="gray")
+        image = scipy.ndimage.gaussian_filter(image, 25)
+        nb_dilution_from_shape = image.shape[1] / image.shape[0]
 
-    plt.figure()
-    hist = np.sum(image, axis=0)
-    plt.plot(hist)
-    min_peak_distance = 0.7 * mean_column_width
-    peak_idxs = scipy.signal.find_peaks(hist, distance=min_peak_distance)[0]
-    valley_idxs = scipy.signal.find_peaks(-hist, distance=min_peak_distance)[0]
-    plt.plot(peak_idxs, hist[peak_idxs], 'r.')
-    plt.plot(valley_idxs, hist[valley_idxs], 'g.')
+        plt.figure()
+        hist = np.sum(image, axis=0)
+        plt.plot(hist)
+        min_peak_distance = 0.7 * mean_column_width
+        peak_idxs = scipy.signal.find_peaks(hist, distance=min_peak_distance)[0]
+        valley_idxs = scipy.signal.find_peaks(-hist, distance=min_peak_distance)[0]
+        plt.plot(peak_idxs, hist[peak_idxs], 'r.')
+        plt.plot(valley_idxs, hist[valley_idxs], 'g.')
 
-    # Selection of the size of plaques
-    peak_diff = np.diff(peak_idxs)
-    valley_diff = np.diff(valley_idxs)
-    peak_to_valley = 2 * np.diff(np.sort(np.concatenate((peak_idxs, valley_idxs))))
-    all_diffs = np.concatenate((peak_diff, valley_diff, peak_to_valley))
-    inferred_spot_size = round(np.median(all_diffs))
-    if inferred_spot_size > 1.2 * mean_column_width or inferred_spot_size < 0.7 * mean_column_width:
-        print("There might be an error in spot size estimate." +
-              f" \nInferred spot size is {inferred_spot_size} while column width is {mean_column_width}")
+        # Selection of the size of plaques
+        peak_diff = np.diff(peak_idxs)
+        valley_diff = np.diff(valley_idxs)
+        peak_to_valley = 2 * np.diff(np.sort(np.concatenate((peak_idxs, valley_idxs))))
+        all_diffs = np.concatenate((peak_diff, valley_diff, peak_to_valley))
+        inferred_spot_size = round(np.median(all_diffs))
+        if inferred_spot_size > 1.2 * mean_column_width or inferred_spot_size < 0.7 * mean_column_width:
+            print("There might be an error in spot size estimate." +
+                  f" \nInferred spot size is {inferred_spot_size} while column width is {mean_column_width}")
 
-    size_threshold = 0.1
-    peaks_mask = np.logical_and(peak_diff < (1 + size_threshold) * inferred_spot_size,
-                                peak_diff > (1 - size_threshold) * inferred_spot_size)
-    peaks_mask = np.logical_or(np.concatenate((peaks_mask, [False])), np.concatenate(([False], peaks_mask)))
-    good_peaks = peak_idxs[peaks_mask]
-    plt.plot(good_peaks, hist[good_peaks], 'r.', markersize=10)
+        size_threshold = 0.1
+        peaks_mask = np.logical_and(peak_diff < (1 + size_threshold) * inferred_spot_size,
+                                    peak_diff > (1 - size_threshold) * inferred_spot_size)
+        peaks_mask = np.logical_or(np.concatenate(
+            (peaks_mask, [False])), np.concatenate(([False], peaks_mask)))
+        good_peaks = peak_idxs[peaks_mask]
+        plt.plot(good_peaks, hist[good_peaks], 'r.', markersize=10)
 
-    valleys_mask = np.logical_and(valley_diff < (1 + size_threshold) * inferred_spot_size,
-                                  valley_diff > (1 - size_threshold) * inferred_spot_size)
-    valleys_mask = np.logical_or(np.concatenate(
-        (valleys_mask, [False])), np.concatenate(([False], valleys_mask)))
-    good_valleys = valley_idxs[valleys_mask]
-    plt.plot(good_valleys, hist[good_valleys], 'g.', markersize=10)
+        valleys_mask = np.logical_and(valley_diff < (1 + size_threshold) * inferred_spot_size,
+                                      valley_diff > (1 - size_threshold) * inferred_spot_size)
+        valleys_mask = np.logical_or(np.concatenate(
+            (valleys_mask, [False])), np.concatenate(([False], valleys_mask)))
+        good_valleys = valley_idxs[valleys_mask]
+        plt.plot(good_valleys, hist[good_valleys], 'g.', markersize=10)
+
+        separations = np.copy(good_valleys)
+        pred = 1
+        while pred > 0:
+            ref = separations[0]
+            lower_peaks = good_peaks[good_peaks < ref]
+            if lower_peaks.size > 0:
+                lower_peak = lower_peaks[-1]
+                pred = ref - 2 * (ref - lower_peak)
+            else:
+                pred = ref - inferred_spot_size
+            separations = np.concatenate(([pred], separations))
+
+        pred = 1
+        while pred < image.shape[1]:
+            ref = separations[-1]
+            higher_peaks = good_peaks[good_peaks > ref]
+            if higher_peaks.size > 0:
+                higher_peak = higher_peaks[0]
+                pred = ref + 2 * (higher_peak - ref)
+            else:
+                pred = ref + inferred_spot_size
+            separations = np.concatenate((separations, [pred]))
+
+        plt.figure()
+        plt.imshow(image, cmap="gray")
+        plt.plot(separations, np.zeros_like(separations), 'g.')
