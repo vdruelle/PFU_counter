@@ -3,6 +3,8 @@ This file contains the code necessary to run the pipeline for plate analysis sta
 the resulting dilutions
 """
 import torch
+import scipy
+import scipy.signal
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -40,7 +42,7 @@ if __name__ == '__main__':
     plate_detector_save = "model_saves/Plate_detection.pt"
     phage_counter_save = "model_saves/Counter_phages.pt"
     image_path = "data/lab_raw_good/20200204_115135.jpg"
-    show_intermediate = True
+    show_intermediate = False
 
     # --- Plate detection part ---
     image, detector_output = plate_detection(image_path, plate_detector_save)
@@ -60,10 +62,51 @@ if __name__ == '__main__':
     detector_images["plate_name"] = sub_images[torch.where(detector_output_cleaned["labels"] == 1)[0]]
     detector_images["phage_names"] = sub_images[torch.where(detector_output_cleaned["labels"] == 2)[0]]
     detector_images["phage_columns"] = []
+    column_width = []
     for ii in torch.where(detector_output_cleaned["labels"] == 3)[0].tolist():
         detector_images["phage_columns"] += [sub_images[ii]]
+        column_width += [sub_images[ii].shape[2]]
+    mean_column_width = np.mean(column_width)
 
+    # --- Extraction of spot from phage columns according to grayscale histogram
     # for image in detector_images["phage_columns"]:
-    #     image = image.cpu().numpy().transpose((1, 2, 0))
-    #     plt.figure()
-    #     plt.imshow(image)
+    image = detector_images["phage_columns"][0]
+    image = image.cpu().numpy().transpose((2, 1, 0))
+    image = np.sum(image, axis=2)
+    image = scipy.ndimage.gaussian_filter(image, 25)
+    plt.figure()
+    plt.imshow(image, cmap="gray")
+    print(image.shape[1] / image.shape[0])
+
+    plt.figure()
+    hist = np.sum(image, axis=0)
+    plt.plot(hist)
+    min_peak_distance = 0.7 * mean_column_width
+    peak_idxs = scipy.signal.find_peaks(hist, distance=min_peak_distance)[0]
+    valley_idxs = scipy.signal.find_peaks(-hist, distance=min_peak_distance)[0]
+    plt.plot(peak_idxs, hist[peak_idxs], 'r.')
+    plt.plot(valley_idxs, hist[valley_idxs], 'g.')
+
+    # Selection of the size of plaques
+    peak_diff = np.diff(peak_idxs)
+    valley_diff = np.diff(valley_idxs)
+    peak_to_valley = 2 * np.diff(np.sort(np.concatenate((peak_idxs, valley_idxs))))
+    all_diffs = np.concatenate((peak_diff, valley_diff, peak_to_valley))
+    inferred_spot_size = round(np.median(all_diffs))
+    if inferred_spot_size > 1.2 * mean_column_width or inferred_spot_size < 0.7 * mean_column_width:
+        print("There might be an error in spot size estimate." +
+              f" \nInferred spot size is {inferred_spot_size} while column width is {mean_column_width}")
+
+    size_threshold = 0.1
+    peaks_mask = np.logical_and(peak_diff < (1 + size_threshold) * inferred_spot_size,
+                                peak_diff > (1 - size_threshold) * inferred_spot_size)
+    peaks_mask = np.logical_or(np.concatenate((peaks_mask, [False])), np.concatenate(([False], peaks_mask)))
+    good_peaks = peak_idxs[peaks_mask]
+    plt.plot(good_peaks, hist[good_peaks], 'r.', markersize=10)
+
+    valleys_mask = np.logical_and(valley_diff < (1 + size_threshold) * inferred_spot_size,
+                                  valley_diff > (1 - size_threshold) * inferred_spot_size)
+    valleys_mask = np.logical_or(np.concatenate(
+        (valleys_mask, [False])), np.concatenate(([False], valleys_mask)))
+    good_valleys = valley_idxs[valleys_mask]
+    plt.plot(good_valleys, hist[good_valleys], 'g.', markersize=10)
