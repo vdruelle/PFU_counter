@@ -15,7 +15,7 @@ from model import PlateDetector
 def plate_detection(image_path, plate_detector_save):
     """
     Loads image and plate_detector model form the given paths, computes the prediction of the plate detector
-    and returns these predictions.
+    and returns these predictions (in forms of torch tensor on GPU).
     """
     # Setting up the model
     device = torch.device('cuda:0' if torch.cuda.is_available() else print("GPU not available"))
@@ -38,6 +38,27 @@ def plate_detection(image_path, plate_detector_save):
     return image, output
 
 
+def plate_extraction(image, detection):
+    """
+    Takes the image and the output of the detector (cleaned from overlapping boxes etc...), crop the subimages
+    and returns them in a dictionary (just image for plate name and phage names, list of image for columns).
+    """
+    detector_images = {}
+    sub_images = []
+    for ii in range(detector_output_cleaned["labels"].shape[0]):
+        box = torch.round(detector_output_cleaned["boxes"][ii]).type(torch.int32)
+        sub_images += [image[:, box[1]:box[3], box[0]:box[2]]]
+
+    detector_images["plate_name"] = sub_images[torch.where(detector_output_cleaned["labels"] == 1)[0]]
+    detector_images["phage_names"] = sub_images[torch.where(detector_output_cleaned["labels"] == 2)[0]]
+    detector_images["phage_columns"] = []
+
+    for ii in torch.where(detector_output_cleaned["labels"] == 3)[0].tolist():
+        detector_images["phage_columns"] += [sub_images[ii]]
+
+    return detector_images
+
+
 if __name__ == '__main__':
     plate_detector_save = "model_saves/Plate_detection.pt"
     phage_counter_save = "model_saves/Counter_phages.pt"
@@ -53,20 +74,8 @@ if __name__ == '__main__':
         utils.plot_plate_detector(image, detector_output)
 
     # --- Extraction of images from box detection ---
-    detector_images = {}
-    sub_images = []
-    for ii in range(detector_output_cleaned["labels"].shape[0]):
-        box = torch.round(detector_output_cleaned["boxes"][ii]).type(torch.int32)
-        sub_images += [image[:, box[1]:box[3], box[0]:box[2]]]
-
-    detector_images["plate_name"] = sub_images[torch.where(detector_output_cleaned["labels"] == 1)[0]]
-    detector_images["phage_names"] = sub_images[torch.where(detector_output_cleaned["labels"] == 2)[0]]
-    detector_images["phage_columns"] = []
-    column_width = []
-    for ii in torch.where(detector_output_cleaned["labels"] == 3)[0].tolist():
-        detector_images["phage_columns"] += [sub_images[ii]]
-        column_width += [sub_images[ii].shape[2]]
-    mean_column_width = np.mean(column_width)
+    detector_images = plate_extraction(image, detector_output_cleaned)
+    mean_column_width = np.mean([im.shape[2] for im in detector_images["phage_columns"]])
 
     # --- Extraction of spot from phage columns according to grayscale histogram
     for image in detector_images["phage_columns"]:
