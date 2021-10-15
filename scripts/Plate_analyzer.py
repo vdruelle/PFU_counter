@@ -9,7 +9,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 import utils
-from model import PlateDetector
+from model import PlateDetector, UNet
 
 
 def plate_detection(image_path, plate_detector_save):
@@ -144,20 +144,24 @@ def refine_peaks(idxs, best, inferred_spot_size, image_height, threshold=0.1):
     Refines the peaks/valleys using the best predicted peak/valley and the inferred spot size.
     """
     cleaned = np.array([best])
+    # Higher dilutions
     pred = 1
     while pred > 0:
         ref = cleaned[0]
         pred = ref - inferred_spot_size
-        mask = np.logical_and(idxs < pred * (1 + threshold), idxs > pred * (1 - threshold))
+        mask = np.logical_and(idxs < pred + threshold * inferred_spot_size,
+                              idxs > pred - threshold * inferred_spot_size)
         if True in mask:
             pred = idxs[mask][0]
         cleaned = np.concatenate(([pred], cleaned))
 
+    # Lower dilutions
     pred = 1
     while pred < image_height:
         ref = cleaned[-1]
         pred = ref + inferred_spot_size
-        mask = np.logical_and(idxs < pred * (1 + threshold), idxs > pred * (1 - threshold))
+        mask = np.logical_and(idxs < pred + threshold * inferred_spot_size,
+                              idxs > pred - threshold * inferred_spot_size)
         if True in mask:
             pred = idxs[mask][0]
         cleaned = np.concatenate((cleaned, [pred]))
@@ -169,11 +173,23 @@ def refine_peaks(idxs, best, inferred_spot_size, image_height, threshold=0.1):
     return cleaned
 
 
+def clean_cuts(cuts, spot_size, image_height, threshold=0.3):
+    """
+    Cleans the given cuts for the detection of spots and returns them.
+    It removes the cuts on the top or below if the rest of the image if inferior to threshold*spot_size
+    """
+    if cuts[0] < threshold * spot_size:
+        cuts = np.delete(cuts, 0)
+    if image_height - cuts[-1] < threshold * spot_size:
+        cuts = np.delete(cuts, -1)
+    return cuts
+
+
 if __name__ == '__main__':
     plate_detector_save = "model_saves/Plate_detection.pt"
     phage_counter_save = "model_saves/Counter_phages.pt"
-    # image_path = "data/lab_raw_good/20200204_115135.jpg"
-    image_path = "data/lab_raw_good/20200204_115534.jpg"
+    image_path = "data/lab_raw_good/20200204_115135.jpg"
+    # image_path = "data/lab_raw_good/20200204_115534.jpg"
     show_intermediate = False
 
     # --- Plate detection part ---
@@ -189,35 +205,66 @@ if __name__ == '__main__':
     mean_column_width = np.mean([im.shape[2] for im in detector_images["phage_columns"]])
 
     # --- Extraction of spot from phage columns according to grayscale histogram
-    for image in detector_images["phage_columns"]:
-        # image = detector_images["phage_columns"][0]
-        image = image.cpu().numpy().transpose((2, 1, 0))
-        image = np.sum(image, axis=2)
-        image_smoothed = scipy.ndimage.gaussian_filter(image, 25)
-        nb_dilution_from_shape = image.shape[1] / image.shape[0]
+    # for column in detector_images["phage_columns"]:
+    column = detector_images["phage_columns"][0]
+    column = column.cpu().numpy().transpose((2, 1, 0))
+    column_smoothed = scipy.ndimage.gaussian_filter(np.sum(column, axis=2), 25)
+    nb_dilution_from_shape = column.shape[1] / column.shape[0]
 
-        hist = np.sum(image_smoothed, axis=0)
-        min_peak_distance = 0.7 * mean_column_width
-        peak_idxs, valley_idxs = find_raw_peaks_and_valleys(hist, min_peak_distance)
+    hist = np.sum(column_smoothed, axis=0)
+    min_peak_distance = 0.7 * mean_column_width
+    peak_idxs, valley_idxs = find_raw_peaks_and_valleys(hist, min_peak_distance)
 
+    # plt.figure()
+    # plt.plot(hist)
+    # plt.plot(peak_idxs, hist[peak_idxs], 'r.')
+    # plt.plot(valley_idxs, hist[valley_idxs], 'g.')
+
+    # Selection of the size of plaques
+    inferred_spot_size = estimate_spot_size(peak_idxs, valley_idxs, mean_column_width)
+
+    # Selecting best peak and valley
+    best_peak, best_valley = best_peak_and_valley(peak_idxs, valley_idxs, inferred_spot_size)
+    # plt.plot(best_peak, hist[best_peak], 'r.', markersize=10)
+    # plt.plot(best_valley, hist[best_valley], 'g.', markersize=10)
+
+    # Cleaning all peaks and valleys
+    cleaned_valleys = refine_peaks(valley_idxs, best_valley, inferred_spot_size, column.shape[1])
+    cleaned_peaks = refine_peaks(peak_idxs, best_peak, inferred_spot_size, column.shape[1])
+
+    # Test whether spot are dark and bacteria bright or the opposit
+    histx = np.sum(column_smoothed, axis=1)
+    if 0.5 * (histx[0] + histx[-1]) > np.mean(histx):
+        # Phages are dark
+        cuts = cleaned_peaks
+    else:
+        # Phages are bright
+        cuts = cleaned_valleys
+
+    cuts = clean_cuts(cuts, inferred_spot_size, column.shape[1])
+
+    if cuts[0] < inferred_spot_size * 0.5:
+        selected_cuts = cuts[0:3]
+    else:
+        selected_cuts = np.concatenate(([0], cuts[0:2]))
+
+    plt.figure()
+    plt.imshow(column, cmap="gray")
+    plt.plot(cuts, np.zeros_like(cuts), "r+", markersize=15)
+    plt.plot(selected_cuts, np.zeros_like(selected_cuts), "g.", markersize=15)
+
+    spot_to_count = [column[:, selected_cuts[0]:selected_cuts[1]],
+                     column[:, selected_cuts[1]:selected_cuts[2]]]
+
+    for spot in spot_to_count:
         plt.figure()
-        plt.plot(hist)
-        plt.plot(peak_idxs, hist[peak_idxs], 'r.')
-        plt.plot(valley_idxs, hist[valley_idxs], 'g.')
+        plt.imshow(spot)
 
-        # Selection of the size of plaques
-        inferred_spot_size = estimate_spot_size(peak_idxs, valley_idxs, mean_column_width)
-
-        # Selecting best peak and valley
-        best_peak, best_valley = best_peak_and_valley(peak_idxs, valley_idxs, inferred_spot_size)
-        plt.plot(best_peak, hist[best_peak], 'r.', markersize=10)
-        plt.plot(best_valley, hist[best_valley], 'g.', markersize=10)
-
-        # Cleaning all peaks and valleys
-        cleaned_valleys = refine_peaks(valley_idxs, best_valley, inferred_spot_size, image.shape[1])
-        cleaned_peaks = refine_peaks(peak_idxs, best_peak, inferred_spot_size, image.shape[1])
-
-        plt.figure()
-        plt.imshow(image, cmap="gray")
-        plt.plot(cleaned_valleys, np.zeros_like(cleaned_valleys), "g+")
-        plt.plot(cleaned_peaks, np.zeros_like(cleaned_peaks), "r+")
+    # Colony counting part
+    device = torch.device('cuda:0' if torch.cuda.is_available() else print("GPU not available"))
+    model = UNet()
+    model.to(device)
+    model.load_state_dict(torch.load("model_saves/Counter_phages.pt"))
+    spot_image = spot_to_count[0]
+    spot_image = torch.tensor(np.transpose(spot_image, (2, 0, 1)), dtype=torch.float32)
+    image.to(device)
