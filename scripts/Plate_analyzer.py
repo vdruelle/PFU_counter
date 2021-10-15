@@ -59,10 +59,121 @@ def plate_extraction(image, detection):
     return detector_images
 
 
+def find_raw_peaks_and_valleys(hist, min_peak_to_peak_distance):
+    """
+    Finds the raw peaks and valleys from the Y histograms of the images and returns them.
+    """
+    peak_idxs = scipy.signal.find_peaks(hist, distance=min_peak_distance)[0]
+    valley_idxs = scipy.signal.find_peaks(-hist, distance=min_peak_distance)[0]
+    return peak_idxs, valley_idxs
+
+
+def estimate_spot_size(peak_idxs, valley_idxs, column_width):
+    """
+    Find the most likely distance between spots from the peaks and valleys and returns it.
+    """
+    peak_diff = np.diff(peak_idxs)
+    valley_diff = np.diff(valley_idxs)
+    peak_to_valley = 2 * np.diff(np.sort(np.concatenate((peak_idxs, valley_idxs))))
+    all_diffs = np.concatenate((peak_diff, valley_diff, peak_to_valley))
+    inferred_spot_size = round(np.median(all_diffs))
+    if inferred_spot_size > 1.2 * column_width or inferred_spot_size < 0.7 * column_width:
+        print("There might be an error in spot size estimate." +
+              f" \nInferred spot size is {inferred_spot_size} while column width is {column_width}")
+    return inferred_spot_size
+
+
+# def clean_peaks(idxs, inferred_spot_size, size_threshold=0.1):
+#     """
+#     Clean the valleys/peaks based on whether they are distant from other peaks/valleys by the inferred spot
+#     size.
+#     """
+#     diff = np.diff(idxs)
+#     mask = np.logical_and(diff < (1 + size_threshold) * inferred_spot_size,
+#                           diff > (1 - size_threshold) * inferred_spot_size)
+#     mask1 = np.concatenate((mask, [False]))
+#     mask2 = np.concatenate(([False], mask))
+#     mask = np.logical_or(mask1, mask2)
+#     breakpoint()
+#     good_idxs = idxs[mask]
+#     return good_idxs
+
+
+def best_peak_and_valley(peak_idxs, valley_idxs, inferred_spot_size, size_threshold=0.1):
+    """
+    Returns the best peak and best valley. How good a peak or valley is is decided based on the number of
+    neighbors peak/valleys that are at the inferred_spot_size distance from them.
+    """
+    def smooth(y, box_pts):
+        box = np.ones(box_pts) / box_pts
+        y_smooth = np.convolve(y, box, mode='same')
+        return y_smooth
+
+    # Peaks
+    diff = np.diff(peak_idxs)
+    mask = np.logical_and(diff < (1 + size_threshold) * inferred_spot_size,
+                          diff > (1 - size_threshold) * inferred_spot_size)
+    mask1 = np.concatenate((mask, [False]))
+    mask2 = np.concatenate(([False], mask))
+    rank_peaks = np.add(mask1, mask2, dtype=np.int64)
+
+    # Valleys
+    diff = np.diff(valley_idxs)
+    mask = np.logical_and(diff < (1 + size_threshold) * inferred_spot_size,
+                          diff > (1 - size_threshold) * inferred_spot_size)
+    mask1 = np.concatenate((mask, [False]))
+    mask2 = np.concatenate(([False], mask))
+    rank_valleys = np.add(mask1, mask2, dtype=np.int64)
+
+    # Selecting best peak/valley from combined analysis
+    idxs = np.concatenate((peak_idxs, valley_idxs))
+    ranks = np.concatenate((rank_peaks, rank_valleys))
+    sorted_idxs = np.argsort(idxs)
+    idxs = idxs[sorted_idxs]
+    ranks = ranks[sorted_idxs]
+    ranks = smooth(ranks, 3)
+
+    peak_ranks = ranks[np.isin(idxs, peak_idxs)]
+    valley_ranks = ranks[np.isin(idxs, valley_idxs)]
+
+    return peak_idxs[np.argmax(peak_ranks)], valley_idxs[np.argmax(valley_ranks)]
+
+
+def refine_peaks(idxs, best, inferred_spot_size, image_height, threshold=0.1):
+    """
+    Refines the peaks/valleys using the best predicted peak/valley and the inferred spot size.
+    """
+    cleaned = np.array([best])
+    pred = 1
+    while pred > 0:
+        ref = cleaned[0]
+        pred = ref - inferred_spot_size
+        mask = np.logical_and(idxs < pred * (1 + threshold), idxs > pred * (1 - threshold))
+        if True in mask:
+            pred = idxs[mask][0]
+        cleaned = np.concatenate(([pred], cleaned))
+
+    pred = 1
+    while pred < image_height:
+        ref = cleaned[-1]
+        pred = ref + inferred_spot_size
+        mask = np.logical_and(idxs < pred * (1 + threshold), idxs > pred * (1 - threshold))
+        if True in mask:
+            pred = idxs[mask][0]
+        cleaned = np.concatenate((cleaned, [pred]))
+
+    # Removing peaks/valleys outside of image
+    cleaned = cleaned[cleaned >= 0]
+    cleaned = cleaned[cleaned <= image_height]
+
+    return cleaned
+
+
 if __name__ == '__main__':
     plate_detector_save = "model_saves/Plate_detection.pt"
     phage_counter_save = "model_saves/Counter_phages.pt"
-    image_path = "data/lab_raw_good/20200204_115135.jpg"
+    # image_path = "data/lab_raw_good/20200204_115135.jpg"
+    image_path = "data/lab_raw_good/20200204_115534.jpg"
     show_intermediate = False
 
     # --- Plate detection part ---
@@ -82,68 +193,31 @@ if __name__ == '__main__':
         # image = detector_images["phage_columns"][0]
         image = image.cpu().numpy().transpose((2, 1, 0))
         image = np.sum(image, axis=2)
-        # plt.figure()
-        # plt.imshow(image, cmap="gray")
-        image = scipy.ndimage.gaussian_filter(image, 25)
+        image_smoothed = scipy.ndimage.gaussian_filter(image, 25)
         nb_dilution_from_shape = image.shape[1] / image.shape[0]
 
-        plt.figure()
-        hist = np.sum(image, axis=0)
-        plt.plot(hist)
+        hist = np.sum(image_smoothed, axis=0)
         min_peak_distance = 0.7 * mean_column_width
-        peak_idxs = scipy.signal.find_peaks(hist, distance=min_peak_distance)[0]
-        valley_idxs = scipy.signal.find_peaks(-hist, distance=min_peak_distance)[0]
+        peak_idxs, valley_idxs = find_raw_peaks_and_valleys(hist, min_peak_distance)
+
+        plt.figure()
+        plt.plot(hist)
         plt.plot(peak_idxs, hist[peak_idxs], 'r.')
         plt.plot(valley_idxs, hist[valley_idxs], 'g.')
 
         # Selection of the size of plaques
-        peak_diff = np.diff(peak_idxs)
-        valley_diff = np.diff(valley_idxs)
-        peak_to_valley = 2 * np.diff(np.sort(np.concatenate((peak_idxs, valley_idxs))))
-        all_diffs = np.concatenate((peak_diff, valley_diff, peak_to_valley))
-        inferred_spot_size = round(np.median(all_diffs))
-        if inferred_spot_size > 1.2 * mean_column_width or inferred_spot_size < 0.7 * mean_column_width:
-            print("There might be an error in spot size estimate." +
-                  f" \nInferred spot size is {inferred_spot_size} while column width is {mean_column_width}")
+        inferred_spot_size = estimate_spot_size(peak_idxs, valley_idxs, mean_column_width)
 
-        size_threshold = 0.1
-        peaks_mask = np.logical_and(peak_diff < (1 + size_threshold) * inferred_spot_size,
-                                    peak_diff > (1 - size_threshold) * inferred_spot_size)
-        peaks_mask = np.logical_or(np.concatenate(
-            (peaks_mask, [False])), np.concatenate(([False], peaks_mask)))
-        good_peaks = peak_idxs[peaks_mask]
-        plt.plot(good_peaks, hist[good_peaks], 'r.', markersize=10)
+        # Selecting best peak and valley
+        best_peak, best_valley = best_peak_and_valley(peak_idxs, valley_idxs, inferred_spot_size)
+        plt.plot(best_peak, hist[best_peak], 'r.', markersize=10)
+        plt.plot(best_valley, hist[best_valley], 'g.', markersize=10)
 
-        valleys_mask = np.logical_and(valley_diff < (1 + size_threshold) * inferred_spot_size,
-                                      valley_diff > (1 - size_threshold) * inferred_spot_size)
-        valleys_mask = np.logical_or(np.concatenate(
-            (valleys_mask, [False])), np.concatenate(([False], valleys_mask)))
-        good_valleys = valley_idxs[valleys_mask]
-        plt.plot(good_valleys, hist[good_valleys], 'g.', markersize=10)
-
-        separations = np.copy(good_valleys)
-        pred = 1
-        while pred > 0:
-            ref = separations[0]
-            lower_peaks = good_peaks[good_peaks < ref]
-            if lower_peaks.size > 0:
-                lower_peak = lower_peaks[-1]
-                pred = ref - 2 * (ref - lower_peak)
-            else:
-                pred = ref - inferred_spot_size
-            separations = np.concatenate(([pred], separations))
-
-        pred = 1
-        while pred < image.shape[1]:
-            ref = separations[-1]
-            higher_peaks = good_peaks[good_peaks > ref]
-            if higher_peaks.size > 0:
-                higher_peak = higher_peaks[0]
-                pred = ref + 2 * (higher_peak - ref)
-            else:
-                pred = ref + inferred_spot_size
-            separations = np.concatenate((separations, [pred]))
+        # Cleaning all peaks and valleys
+        cleaned_valleys = refine_peaks(valley_idxs, best_valley, inferred_spot_size, image.shape[1])
+        cleaned_peaks = refine_peaks(peak_idxs, best_peak, inferred_spot_size, image.shape[1])
 
         plt.figure()
         plt.imshow(image, cmap="gray")
-        plt.plot(separations, np.zeros_like(separations), 'g.')
+        plt.plot(cleaned_valleys, np.zeros_like(cleaned_valleys), "g+")
+        plt.plot(cleaned_peaks, np.zeros_like(cleaned_peaks), "r+")
