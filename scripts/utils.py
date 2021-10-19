@@ -95,3 +95,22 @@ def load_image_from_file(path):
     image = image.transpose(Image.ROTATE_270)  # Because PIL consider longest side to be width
     image = np.array(image) / 255
     return image
+
+
+def combine_label_files(original_label_folder, additional_label_folder, combined_label_folder):
+    """
+    Combines the label files with the same names from orginal and additional folder. Save the combined labels
+    in the combined folder.
+    """
+    import os
+    import pandas as pd
+    for file in os.listdir(original_label_folder):
+        original_file = original_label_folder + file
+        additional_file = additional_label_folder + file
+        combined_file = combined_label_folder + file
+
+        odf = pd.read_csv(original_file, sep=" ", names=["label", "cx", "cy", "w", "h"])
+        adf = pd.read_csv(additional_file, sep=" ", names=["label", "cx", "cy", "w", "h"])
+        cdf = pd.concat([odf, adf])
+
+        cdf.to_csv(combined_file, sep=" ", header=False, index=False)
