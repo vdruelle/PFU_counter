@@ -24,13 +24,13 @@ def train_plate_detection():
     Train a FasterRCNN to do plate element detection using the LabH5Dataset.
     """
     device = torch.device('cuda:0' if torch.cuda.is_available() else print("GPU not available"))
-    writer = SummaryWriter('runs/PlateDetector_Albu_6')
+    writer = SummaryWriter('runs/PlateDetector_albu5')
 
     dataset_folder = "data/phage_plates/"
     plate_dataset = {}
     for phase in ["train", "valid"]:
         plate_dataset[phase] = LabH5Dataset(dataset_folder + phase + ".h5",
-                                            PlateAlbumentation(7) if phase == "train" else None)
+                                            PlateAlbumentation(5) if phase == "train" else None)
 
     dataloader = {}
     for phase in ["train", "valid"]:
@@ -39,14 +39,14 @@ def train_plate_detection():
             shuffle=(phase == "train"), collate_fn=collate_fn)
 
     # The model
-    model = PlateDetector(num_classes=4, backbone="mobilenet", trainable_backbone_layers=None)
+    model = PlateDetector(num_classes=5, backbone="mobilenet", trainable_backbone_layers=None)
     model.to(device)
 
     # Optimizer
     optimizer = torch.optim.SGD(model.parameters(), lr=1e-2, momentum=0.9, weight_decay=5e-4)
     lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=25, gamma=0.1)
 
-    num_epochs = 60
+    num_epochs = 40
     n_iter = 0
     for epoch in range(num_epochs):
         print(f"--- Epoch {epoch} ---")
@@ -172,7 +172,7 @@ def optimize_plate_detection():
     print("That's it!")
 
 
-def predict_plate():
+def predict_plate(model_path="model_saves/Plate_detection.pt"):
     """
     Function to test the predictions of the network trained by train_plate_detection().
     """
@@ -190,7 +190,7 @@ def predict_plate():
 
     model = PlateDetector()
     model.to(device)
-    model.load_state_dict(torch.load("model_saves/Plate_detection.pt"))
+    model.load_state_dict(torch.load(model_path))
 
     model.eval()
     with torch.no_grad():
@@ -201,38 +201,6 @@ def predict_plate():
             outputs = [{k: v.cpu() for k, v in t.items()} for t in outputs]
             utils.plot_plate_detector(images[0], outputs[0])
     plt.show()
-
-
-def compute_old_validation_errors(predictions, targets):
-    """
-    Computes a simple validation error and returns it. Basically it takes every prediction and computes an L1
-    loss to the corresponding target, weighted by the attributed score.
-    I could restrain this to only take the best prediction for Plate name and Phage names.
-    I could also add a penalty for when no plate name / phage names are predicted.
-    I could add a penalty for missing columns too.
-    """
-    error = 0
-    for prediction, target in zip(predictions, targets):
-        for ii in range(len(prediction["scores"])):
-            # Error for plate name
-            if prediction["labels"][ii] == 1:  # plate name label id
-                tbox = target["boxes"][target["labels"] == 1][0]
-                weight = prediction["scores"][ii]
-                error += mse_loss(prediction["boxes"][ii], tbox) * weight
-            # Error for phage names
-            if prediction["labels"][ii] == 2:  # phage names label id
-                tbox = target["boxes"][target["labels"] == 2][0]
-                weight = prediction["scores"][ii]
-                error += mse_loss(prediction["boxes"][ii], tbox) * weight
-            # Error for phage columns
-            if prediction["labels"][ii] == 3:  # phage columns label id
-                tboxes = target["boxes"][target["labels"] == 3]
-                pred = prediction["boxes"][ii]
-                # Handwritten L1 loss because it does not broadcast to all targets
-                losses = torch.abs(tboxes - pred).sum(dim=1)
-                weight = prediction["scores"][ii]
-                error += losses.min() * weight  # select the target column that corresponds most
-    return error
 
 
 def compute_validation_errors(predictions, targets):
@@ -267,10 +235,20 @@ def compute_validation_errors(predictions, targets):
             # Takes the best box for each target box, and compute the IoU error between each pair
             error += torch.sum(1 - torchvision.ops.generalized_box_iou(pboxes, tboxes).max(dim=0)[0])
 
+        # For phage rows
+        idxs_phage_rows = torch.where(prediction["labels"] == 4)[0]
+        if idxs_phage_rows.shape[0] != 0:
+            tboxes = target["boxes"][target["labels"] == 4]
+            pboxes = prediction["boxes"][idxs_phage_rows]
+            # This step removes boxes of lower score that overlap by more than 25% with a higher score box
+            pboxes = utils.cleanup_boxes(pboxes, prediction["scores"][idxs_phage_columns], 0.25)
+            # Takes the best box for each target box, and compute the IoU error between each pair
+            error += torch.sum(1 - torchvision.ops.generalized_box_iou(pboxes, tboxes).max(dim=0)[0])
+
     return error
 
 
 if __name__ == '__main__':
-    # train_plate_detection()
+    train_plate_detection()
     # optimize_plate_detection()
-    predict_plate()
+    # predict_plate("model_saves/Plate_detection_5class.pt")

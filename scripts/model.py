@@ -131,7 +131,7 @@ class UNet(nn.Module):
         return self.density_pred(block7)
 
 
-def PlateDetector(num_classes=4, backbone="mobilenet", trainable_backbone_layers=0):
+def PlateDetector(num_classes=5, backbone="mobilenet", trainable_backbone_layers=0):
     """
     Creates and returns the network for plate element detection with the given number of classes and the
     chosen backbone.
