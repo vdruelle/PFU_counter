@@ -24,7 +24,7 @@ def train_plate_detection():
     Train a FasterRCNN to do plate element detection using the LabH5Dataset.
     """
     device = torch.device('cuda:0' if torch.cuda.is_available() else print("GPU not available"))
-    writer = SummaryWriter('runs/PlateDetector_albu5')
+    writer = SummaryWriter('runs/PlateDetector_5')
 
     dataset_folder = "data/phage_plates/"
     plate_dataset = {}
@@ -78,20 +78,30 @@ def train_plate_detection():
         # Test
         with torch.no_grad():
             valid_loss = 0
-            model.eval()
             for images, targets in dataloader["valid"]:
                 images = list(image.to(device) for image in images)
                 targets = [{key: t[key].to(device) for key in t.keys()} for t in targets]
 
-                outputs = model(images)
-                valid_loss += compute_validation_errors(outputs, targets)
+                losses_dict = model(images, targets)
+                valid_loss += sum(loss for loss in losses_dict.values())
 
             valid_loss /= len(plate_dataset["valid"])
             writer.add_scalar("Total_loss/test", valid_loss, epoch)
 
+            # model.eval()
+            # for images, targets in dataloader["valid"]:
+            #     images = list(image.to(device) for image in images)
+            #     targets = [{key: t[key].to(device) for key in t.keys()} for t in targets]
+            #
+            #     outputs = model(images)
+            #     valid_loss += compute_validation_errors(outputs, targets)
+            #
+            # valid_loss /= len(plate_dataset["valid"])
+            # writer.add_scalar("Total_loss/test", valid_loss, epoch)
+
         lr_scheduler.step()
 
-    torch.save(model.state_dict(), "model_saves/Plate_detection.pt")
+    # torch.save(model.state_dict(), "model_saves/Plate_detection.pt")
     print("That's it!")
 
 
@@ -241,7 +251,7 @@ def compute_validation_errors(predictions, targets):
             tboxes = target["boxes"][target["labels"] == 4]
             pboxes = prediction["boxes"][idxs_phage_rows]
             # This step removes boxes of lower score that overlap by more than 25% with a higher score box
-            pboxes = utils.cleanup_boxes(pboxes, prediction["scores"][idxs_phage_columns], 0.25)
+            pboxes = utils.cleanup_boxes(pboxes, prediction["scores"][idxs_phage_rows], 0.25)
             # Takes the best box for each target box, and compute the IoU error between each pair
             error += torch.sum(1 - torchvision.ops.generalized_box_iou(pboxes, tboxes).max(dim=0)[0])
 
@@ -249,6 +259,6 @@ def compute_validation_errors(predictions, targets):
 
 
 if __name__ == '__main__':
-    train_plate_detection()
+    # train_plate_detection()
     # optimize_plate_detection()
-    # predict_plate("model_saves/Plate_detection_5class.pt")
+    predict_plate("model_saves/Plate_detection.pt")
