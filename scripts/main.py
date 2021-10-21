@@ -24,12 +24,19 @@ def train_plate_detection():
     Train a FasterRCNN to do plate element detection using the LabH5Dataset.
     """
     device = torch.device('cuda:0' if torch.cuda.is_available() else print("GPU not available"))
-    writer = SummaryWriter('runs/Test2')
+    writer = SummaryWriter('runs/Test_newdata')
 
-    dataset_folder = "data/plates_labeled/"
-    dataset = PlateDataset(dataset_folder, transform=None)
-    dataloader = torch.utils.data.DataLoader(dataset, batch_size=4, num_workers=4,
-                                             shuffle=True, collate_fn=collate_fn)
+    dataset_folder = {"train": "data/plates_labeled/train/", "test": "data/plates_labeled/test/"}
+    plate_dataset = {}
+    for phase in ["train", "test"]:
+        plate_dataset[phase] = PlateDataset(dataset_folder[phase], None)
+                                            # PlateAlbumentation(0) if phase == "train" else None)
+
+    dataloader = {}
+    for phase in ["train", "test"]:
+        dataloader[phase] = torch.utils.data.DataLoader(
+            plate_dataset[phase], batch_size=4, num_workers=4, shuffle=(phase == "train"),
+            collate_fn=collate_fn)
 
     # The model
     model = PlateDetector(num_classes=5, backbone="mobilenet", trainable_backbone_layers=None)
@@ -45,7 +52,7 @@ def train_plate_detection():
         print(f"--- Epoch {epoch} ---")
         # Train
         model.train()
-        for ii, (images, targets) in enumerate(dataloader):
+        for ii, (images, targets) in enumerate(dataloader["train"]):
             images = list(image.to(device) for image in images)
             targets = [{key: t[key].to(device) for key in t.keys()} for t in targets]
 
@@ -69,17 +76,17 @@ def train_plate_detection():
             n_iter += 1
 
         # Test
-        # with torch.no_grad():
-        #     valid_loss = 0
-        #     for images, targets in dataloader["valid"]:
-        #         images = list(image.to(device) for image in images)
-        #         targets = [{key: t[key].to(device) for key in t.keys()} for t in targets]
-        #
-        #         losses_dict = model(images, targets)
-        #         valid_loss += sum(loss for loss in losses_dict.values())
-        #
-        #     valid_loss /= len(plate_dataset["valid"])
-        #     writer.add_scalar("Total_loss/test", valid_loss, epoch)
+        with torch.no_grad():
+            valid_loss = 0
+            for images, targets in dataloader["test"]:
+                images = list(image.to(device) for image in images)
+                targets = [{key: t[key].to(device) for key in t.keys()} for t in targets]
+
+                losses_dict = model(images, targets)
+                valid_loss += sum(loss for loss in losses_dict.values())
+
+            valid_loss /= len(plate_dataset["test"])
+            writer.add_scalar("Total_loss/test", valid_loss, epoch)
 
         lr_scheduler.step()
 
@@ -96,12 +103,12 @@ def optimize_plate_detection():
 
     dataset_folder = "data/phage_plates/"
     plate_dataset = {}
-    for phase in ["train", "valid"]:
+    for phase in ["train", "test"]:
         plate_dataset[phase] = LabH5Dataset(dataset_folder + phase + ".h5",
                                             PlateAlbumentation(5) if phase == "train" else None)
 
     dataloader = {}
-    for phase in ["train", "valid"]:
+    for phase in ["train", "test"]:
         dataloader[phase] = torch.utils.data.DataLoader(
             plate_dataset[phase], batch_size=4, num_workers=4,
             shuffle=(phase == "train"), collate_fn=collate_fn)
@@ -148,14 +155,14 @@ def optimize_plate_detection():
         with torch.no_grad():
             valid_loss = 0
             model.eval()
-            for images, targets in dataloader["valid"]:
+            for images, targets in dataloader["test"]:
                 images = list(image.to(device) for image in images)
                 targets = [{key: t[key].to(device) for key in t.keys()} for t in targets]
 
                 outputs = model(images)
                 valid_loss += compute_validation_errors(outputs, targets)
 
-            valid_loss /= len(plate_dataset["valid"])
+            valid_loss /= len(plate_dataset["test"])
             writer.add_scalar("Total_loss/test", valid_loss, epoch)
 
         lr_scheduler.step()
@@ -172,11 +179,11 @@ def predict_plate(model_path="model_saves/Plate_detection.pt"):
 
     dataset_folder = "data/phage_plates/"
     plate_dataset = {}
-    for phase in ["train", "valid"]:
+    for phase in ["train", "test"]:
         plate_dataset[phase] = LabH5Dataset(dataset_folder + phase + ".h5", None)
 
     dataloader = {}
-    for phase in ["train", "valid"]:
+    for phase in ["train", "test"]:
         dataloader[phase] = torch.utils.data.DataLoader(
             plate_dataset[phase], batch_size=1, num_workers=1, shuffle=False, collate_fn=collate_fn)
 
@@ -186,7 +193,7 @@ def predict_plate(model_path="model_saves/Plate_detection.pt"):
 
     model.eval()
     with torch.no_grad():
-        for images, targets in dataloader["valid"]:
+        for images, targets in dataloader["test"]:
             images = list(image.to(device) for image in images)
 
             outputs = model(images)
