@@ -310,9 +310,47 @@ def inspect_plate_data(image_label_folder="data/plates_labeled/", start_idx=0):
         plt.show()
 
 
+def create_plate_data(image_label_folder="data/plates_labeled/"):
+    """
+    Creates the plate datasets (train + test) in numpy/list format and saves them in the corresponding folder.
+    """
+    image_list = list(sorted(os.listdir(os.path.join(image_label_folder, "images"))))
+    os.makedirs(image_label_folder + "train/images/", exist_ok=True)
+    os.makedirs(image_label_folder + "train/labels/", exist_ok=True)
+    os.makedirs(image_label_folder + "test/images/", exist_ok=True)
+    os.makedirs(image_label_folder + "test/labels/", exist_ok=True)
+
+    valid_size = 12
+    valid_list = random.choices(image_list, k=valid_size)
+    train_list = [im for im in image_list if im not in valid_list]
+
+    # Train data
+    for ii in range(len(train_list)):
+        old_image_path = os.path.join(image_label_folder + "images/", train_list[ii])
+        old_label_path = os.path.join(image_label_folder + "labels/", train_list[ii][:-4] + ".txt")
+
+        new_image_path = os.path.join(image_label_folder + "train/images/", train_list[ii])
+        new_label_path = os.path.join(image_label_folder + "train/labels/", train_list[ii][:-4] + ".txt")
+
+        os.system(f"cp {old_image_path} {new_image_path}")
+        os.system(f"cp {old_label_path} {new_label_path}")
+
+    # Test data
+    for ii in range(len(valid_list)):
+        old_image_path = os.path.join(image_label_folder + "images/", valid_list[ii])
+        old_label_path = os.path.join(image_label_folder + "labels/", valid_list[ii][:-4] + ".txt")
+
+        new_image_path = os.path.join(image_label_folder + "test/images/", valid_list[ii])
+        new_label_path = os.path.join(image_label_folder + "test/labels/", valid_list[ii][:-4] + ".txt")
+
+        os.system(f"cp {old_image_path} {new_image_path}")
+        os.system(f"cp {old_label_path} {new_label_path}")
+
+
 if __name__ == '__main__':
     # generate_cell_data()
     # make_spots_label("data/phage_spots_labels/labels.csv", "data/phage_spots_labels/")
     # generate_phage_data()
     # generate_plate_data()
-    inspect_plate_data(start_idx=50)
+    # inspect_plate_data(start_idx=50)
+    create_plate_data()
