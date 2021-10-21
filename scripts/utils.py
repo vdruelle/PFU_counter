@@ -30,6 +30,22 @@ def plot_plate_detector(image, target):
                      color=colors[target["labels"][ii].item()])
 
 
+def plot_plate_data(image, boxes, labels):
+    """
+    Takes inputs as numpy arrays and plot them.
+    """
+    colors = ["C0", "C1", "C2", "C3", "C4"]
+    plt.figure(figsize=(14, 10))
+    plt.imshow(image)
+
+    for ii in range(len(boxes)):
+        box = boxes[ii]
+        plt.gca().add_patch(Rectangle((box[0], box[1]), box[2] - box[0], box[3] - box[1],
+                                      facecolor="none",
+                                      edgecolor=colors[labels[ii]],
+                                      alpha=0.5))
+
+
 def plot_image_dot(image, label):
     im = np.transpose(image, (1, 2, 0))
     lab = np.transpose(label, (1, 2, 0))
@@ -84,16 +100,18 @@ def plot_counter_albu(image, label, raw_image, raw_label):
     # plt.show()
 
 
-def load_image_from_file(path):
+def load_image_from_file(path, dtype="float"):
     """
     Loads an image from the given path and rotate it so that plt.imshow shows it in the correct manner.
     It also normalizes the image to be in the range [0,1] for each value.
     Returns the image as a numpy array of shape [height, width, color_channels].
     """
+    assert dtype in ["int", "float"], "datatype must be int or float"
     from PIL import Image
     image = Image.open(path)
     image = image.transpose(Image.ROTATE_270)  # Because PIL consider longest side to be width
-    image = np.array(image) / 255
+    if dtype == "float":
+        image = np.array(image) / 255
     return image
 
 

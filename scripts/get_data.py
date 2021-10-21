@@ -287,8 +287,32 @@ def boxes_from_label_file(label_file, image_height, image_width, max_length, pad
     return boxes, labels
 
 
+def inspect_plate_data(image_label_folder="data/plates_labeled/", start_idx=0):
+    """
+    Shows the plate images and respective labels in the folder. Use the start_idx argument to specify at which
+    image of the list you wish to start.
+    """
+    import utils
+    import matplotlib.pyplot as plt
+    img_size = (4608, 3456)
+    label_size = 20
+
+    image_list = list(sorted(os.listdir(image_label_folder + "images/")))
+    labels_list = list(sorted(os.listdir(image_label_folder + "labels/")))
+    for image_name, label_name in zip(image_list[start_idx:], labels_list[start_idx:]):
+        print(f"Image : {image_name}")
+        image = utils.load_image_from_file(image_label_folder + "images/" + image_name, dtype="int")
+
+        boxes, labels = boxes_from_label_file(
+            image_label_folder + "labels/" + label_name, *img_size, max_length=label_size)
+
+        utils.plot_plate_data(image, boxes, labels)
+        plt.show()
+
+
 if __name__ == '__main__':
     # generate_cell_data()
     # make_spots_label("data/phage_spots_labels/labels.csv", "data/phage_spots_labels/")
     # generate_phage_data()
-    generate_plate_data()
+    # generate_plate_data()
+    inspect_plate_data(start_idx=50)
