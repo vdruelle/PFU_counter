@@ -33,7 +33,7 @@ class PlateDataset(data.Dataset):
         boxes, labels = utils.boxes_and_labels_from_file(label_path, image_height, image_width)
 
         if self.transform is not None:
-            labels = labels.astype(np.int64)
+            labels = np.array(labels, dtype=np.int64)
             return self.transform(image, {"boxes": boxes, "labels": labels})
         else:
             boxes = torch.tensor(boxes, dtype=torch.float32)
@@ -122,26 +122,15 @@ class H5Dataset(data.Dataset):
 
 
 if __name__ == '__main__':
-    from PIL import Image
-    dataset_folder = "data/plates_labeled/"
-    # dataset = PlateDataset(dataset_folder, transform=None)
-    # image, target = dataset[0]
-    #
-    # dataset2 = LabH5Dataset("data/phage_plates/train.h5")
-    # image2, target2 = dataset2[0]
-    #
-    # assert image.dtype == image2.dtype, "dtype error"
-    # assert type(target) == type(target2), "dtype error"
-    # assert target["boxes"].dtype == target2["boxes"].dtype, "dtype error"
-    # assert target["labels"].dtype == target2["labels"].dtype, "dtype error"
+    from transforms import PlateAlbumentation
+    dataset_folder = "data/plates_labeled/train/"
+    dataset = PlateDataset(dataset_folder, transform=PlateAlbumentation(0))
+    image, target = dataset[0]
 
-    image_path = dataset_folder + "images/20200204_115031.jpg"
-    image = utils.load_image_from_file(image_path, dtype="float")
-    image_width, image_height = image.shape[1], image.shape[0]
-    boxes, labels = utils.boxes_and_labels_from_file(
-        dataset_folder + "labels/20200204_115031.txt", image_height, image_width)
+    dataset2 = LabH5Dataset("data/phage_plates/train.h5")
+    image2, target2 = dataset2[0]
 
-    boxes = torch.tensor(boxes, dtype=torch.float32)
-    labels = torch.tensor(labels, dtype=torch.int64)
-    target = {"boxes": boxes, "labels": labels}
-    torch.tensor(np.transpose(image, (2, 0, 1)), dtype=torch.float32)
+    assert image.dtype == image2.dtype, "dtype error"
+    assert type(target) == type(target2), "dtype error"
+    assert target["boxes"].dtype == target2["boxes"].dtype, "dtype error"
+    assert target["labels"].dtype == target2["labels"].dtype, "dtype error"
