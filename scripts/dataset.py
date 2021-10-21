@@ -10,14 +10,15 @@ import torchvision.transforms as transforms
 from albumentations.pytorch import ToTensorV2
 from PIL import Image
 from typing import Optional
+import utils
 
 
-class LabDataset(data.Dataset):
-    def __init__(self, image_dir, label_dir, transform=None):
-        self.image_dir = image_dir
-        self.label_dir = label_dir
-        self.images = list(sorted(os.listdir(image_dir)))
-        self.labels = list(sorted(os.listdir(label_dir)))
+class PlateDataset(data.Dataset):
+    def __init__(self, data_dir, transform=None):
+        self.image_dir = os.path.join(data_dir, "images")
+        self.label_dir = os.path.join(data_dir, "labels")
+        self.images = list(sorted(os.listdir(self.image_dir)))
+        self.labels = list(sorted(os.listdir(self.label_dir)))
         self.transform = transform
 
     def __len__(self):
@@ -27,39 +28,18 @@ class LabDataset(data.Dataset):
         image_path = os.path.join(self.image_dir, self.images[idx])
         label_path = os.path.join(self.label_dir, self.labels[idx])
 
-        image = Image.open(image_path)
-        image = image.transpose(Image.ROTATE_270)
-        image = image.convert("RGB")
-        image_width, image_height = image.size
-        # This is in relative coordinate
-        df = pd.read_csv(label_path, sep=" ", names=["label", "cx", "cy", "w", "h"])
-        df["label"] += 1  # label 0 must be background
-        df2 = df.copy(deep=True)
-        df2.columns = ["label", "x1", "y1", "x2", "y2"]
-        df2["x1"] = (df["cx"] - df["w"] / 2.0) * image_width
-        df2["y1"] = (df["cy"] - df["h"] / 2.0) * image_height
-        df2["x2"] = (df["cx"] + df["w"] / 2.0) * image_width
-        df2["y2"] = (df["cy"] + df["h"] / 2.0) * image_height
-        boxes = df2[["x1", "y1", "x2", "y2"]].values.tolist()
-        labels = df["label"].values.tolist()
-        area = (df["w"] * image_width * df["h"] * image_height).values.tolist()
-
-        image = transforms.functional.to_tensor(image)
-        boxes = torch.as_tensor(boxes, dtype=torch.float32)
-        labels = torch.as_tensor(labels, dtype=torch.int64)
-        image_id = torch.tensor([idx])
-        area = torch.as_tensor(area)
-
-        target = {}
-        target["labels"] = labels
-        target["boxes"] = boxes
-        target["image_id"] = image_id
-        target["area"] = area
+        image = utils.load_image_from_file(image_path, dtype="float")
+        image_width, image_height = image.shape[1], image.shape[0]
+        boxes, labels = utils.boxes_and_labels_from_file(label_path, image_height, image_width)
 
         if self.transform is not None:
-            image, target = self.transform(image, target)
-
-        return image, target
+            labels = labels.astype(np.int64)
+            return self.transform(image, {"boxes": boxes, "labels": labels})
+        else:
+            boxes = torch.tensor(boxes, dtype=torch.float32)
+            labels = torch.tensor(labels, dtype=torch.int64)
+            target = {"boxes": boxes, "labels": labels}
+            return torch.tensor(np.transpose(image, (2, 0, 1)), dtype=torch.float32), target
 
 
 class LabH5Dataset(data.Dataset):
@@ -141,41 +121,27 @@ class H5Dataset(data.Dataset):
         return mean, std
 
 
-# --- PYTESTS --- #
+if __name__ == '__main__':
+    from PIL import Image
+    dataset_folder = "data/plates_labeled/"
+    # dataset = PlateDataset(dataset_folder, transform=None)
+    # image, target = dataset[0]
+    #
+    # dataset2 = LabH5Dataset("data/phage_plates/train.h5")
+    # image2, target2 = dataset2[0]
+    #
+    # assert image.dtype == image2.dtype, "dtype error"
+    # assert type(target) == type(target2), "dtype error"
+    # assert target["boxes"].dtype == target2["boxes"].dtype, "dtype error"
+    # assert target["labels"].dtype == target2["labels"].dtype, "dtype error"
 
+    image_path = dataset_folder + "images/20200204_115031.jpg"
+    image = utils.load_image_from_file(image_path, dtype="float")
+    image_width, image_height = image.shape[1], image.shape[0]
+    boxes, labels = utils.boxes_and_labels_from_file(
+        dataset_folder + "labels/20200204_115031.txt", image_height, image_width)
 
-def test_loader():
-    """Test HDF5 dataloader with flips on and off."""
-    run_batch(flip=False)
-    run_batch(flip=True)
-
-
-def run_batch(flip):
-    """Sanity check for HDF5 dataloader checks for shapes and empty arrays."""
-    # datasets to test loader on
-    datasets = {
-        'data/cells': (3, 256, 256),
-    }
-
-    # for each dataset check both training and validation HDF5
-    # for each one check if shapes are right and arrays are not empty
-    for dataset, size in datasets.items():
-        for h5 in ('train.h5', 'valid.h5'):
-            # create a loader in "all flips" or "no flips" mode
-            data = H5Dataset(os.path.join(dataset, h5),
-                             horizontal_flip=1.0 * flip,
-                             vertical_flip=1.0 * flip)
-            # create dataloader with few workers
-            data_loader = torch.utils.data.DataLoader(data, batch_size=4, num_workers=4)
-
-            # take one batch, check samples, and go to the next file
-            for img, label in data_loader:
-                # image batch shape (#workers, #channels, resolution)
-                assert img.shape == (4, *size)
-                # label batch shape (#workers, 1, resolution)
-                assert label.shape == (4, 1, *size[1:])
-
-                assert torch.sum(img) > 0
-                assert torch.sum(label) > 0
-
-                break
+    boxes = torch.tensor(boxes, dtype=torch.float32)
+    labels = torch.tensor(labels, dtype=torch.int64)
+    target = {"boxes": boxes, "labels": labels}
+    torch.tensor(np.transpose(image, (2, 0, 1)), dtype=torch.float32)

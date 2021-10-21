@@ -9,7 +9,7 @@ import torchvision
 from torch.utils.tensorboard import SummaryWriter
 from torch.nn.functional import mse_loss
 
-from dataset import LabDataset, LabH5Dataset
+from dataset import PlateDataset, LabH5Dataset
 from transforms import PlateAlbumentation
 from model import PlateDetector
 import utils
@@ -24,35 +24,28 @@ def train_plate_detection():
     Train a FasterRCNN to do plate element detection using the LabH5Dataset.
     """
     device = torch.device('cuda:0' if torch.cuda.is_available() else print("GPU not available"))
-    writer = SummaryWriter('runs/PlateDetector_5')
+    writer = SummaryWriter('runs/Test2')
 
-    dataset_folder = "data/phage_plates/"
-    plate_dataset = {}
-    for phase in ["train", "valid"]:
-        plate_dataset[phase] = LabH5Dataset(dataset_folder + phase + ".h5",
-                                            PlateAlbumentation(5) if phase == "train" else None)
-
-    dataloader = {}
-    for phase in ["train", "valid"]:
-        dataloader[phase] = torch.utils.data.DataLoader(
-            plate_dataset[phase], batch_size=4, num_workers=4,
-            shuffle=(phase == "train"), collate_fn=collate_fn)
+    dataset_folder = "data/plates_labeled/"
+    dataset = PlateDataset(dataset_folder, transform=None)
+    dataloader = torch.utils.data.DataLoader(dataset, batch_size=4, num_workers=4,
+                                             shuffle=True, collate_fn=collate_fn)
 
     # The model
     model = PlateDetector(num_classes=5, backbone="mobilenet", trainable_backbone_layers=None)
     model.to(device)
 
     # Optimizer
-    optimizer = torch.optim.SGD(model.parameters(), lr=1e-2, momentum=0.9, weight_decay=5e-4)
+    optimizer = torch.optim.SGD(model.parameters(), lr=5e-3, momentum=0.9, weight_decay=5e-4)
     lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=25, gamma=0.1)
 
-    num_epochs = 40
+    num_epochs = 20
     n_iter = 0
     for epoch in range(num_epochs):
         print(f"--- Epoch {epoch} ---")
         # Train
         model.train()
-        for ii, (images, targets) in enumerate(dataloader["train"]):
+        for ii, (images, targets) in enumerate(dataloader):
             images = list(image.to(device) for image in images)
             targets = [{key: t[key].to(device) for key in t.keys()} for t in targets]
 
@@ -76,28 +69,17 @@ def train_plate_detection():
             n_iter += 1
 
         # Test
-        with torch.no_grad():
-            valid_loss = 0
-            for images, targets in dataloader["valid"]:
-                images = list(image.to(device) for image in images)
-                targets = [{key: t[key].to(device) for key in t.keys()} for t in targets]
-
-                losses_dict = model(images, targets)
-                valid_loss += sum(loss for loss in losses_dict.values())
-
-            valid_loss /= len(plate_dataset["valid"])
-            writer.add_scalar("Total_loss/test", valid_loss, epoch)
-
-            # model.eval()
-            # for images, targets in dataloader["valid"]:
-            #     images = list(image.to(device) for image in images)
-            #     targets = [{key: t[key].to(device) for key in t.keys()} for t in targets]
-            #
-            #     outputs = model(images)
-            #     valid_loss += compute_validation_errors(outputs, targets)
-            #
-            # valid_loss /= len(plate_dataset["valid"])
-            # writer.add_scalar("Total_loss/test", valid_loss, epoch)
+        # with torch.no_grad():
+        #     valid_loss = 0
+        #     for images, targets in dataloader["valid"]:
+        #         images = list(image.to(device) for image in images)
+        #         targets = [{key: t[key].to(device) for key in t.keys()} for t in targets]
+        #
+        #         losses_dict = model(images, targets)
+        #         valid_loss += sum(loss for loss in losses_dict.values())
+        #
+        #     valid_loss /= len(plate_dataset["valid"])
+        #     writer.add_scalar("Total_loss/test", valid_loss, epoch)
 
         lr_scheduler.step()
 
@@ -259,6 +241,6 @@ def compute_validation_errors(predictions, targets):
 
 
 if __name__ == '__main__':
-    # train_plate_detection()
+    train_plate_detection()
     # optimize_plate_detection()
-    predict_plate("model_saves/Plate_detection.pt")
+    # predict_plate("model_saves/Plate_detection.pt")
