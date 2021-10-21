@@ -5,7 +5,7 @@ import torchvision
 import pandas as pd
 
 
-def plot_plate_detector(image, target):
+def plot_plate_detector(image, target, threshold=0.3):
     """
     Takes in torch tensor (on gpu) and plots the predictions of the network.
     """
@@ -21,6 +21,9 @@ def plot_plate_detector(image, target):
         idxs = range(len(target["boxes"]))
 
     for ii in idxs:
+        if target["labels"][ii] == 4:  # Dilution rows
+            if target["scores"][ii] < threshold:
+                continue
         box = target["boxes"][ii]
         plt.gca().add_patch(Rectangle((box[0], box[1]), box[2] - box[0], box[3] - box[1],
                                       facecolor="none",

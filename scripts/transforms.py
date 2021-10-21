@@ -4,7 +4,7 @@ import torchvision
 import numpy as np
 import albumentations as A
 
-from dataset import H5Dataset, LabH5Dataset
+from dataset import H5Dataset, LabH5Dataset, PlateDataset
 from torchvision.transforms import functional as F
 from albumentations.pytorch import ToTensorV2
 import utils
@@ -184,7 +184,6 @@ class PlateAlbumentation(object):
             transform = A.Compose(
                 [
                     A.HorizontalFlip(p=0.5),
-                    A.Rotate(limit=2),  # 62ms
                     A.RandomBrightnessContrast(),
                     A.OneOf([A.GaussianBlur(blur_limit=(3, 21), p=0.5),
                              A.GaussNoise(0.1, p=0.5),
@@ -202,7 +201,7 @@ class PlateAlbumentation(object):
                              A.GaussNoise(0.1, p=0.5),  # 1266ms
                              A.MultiplicativeNoise([0.5, 1.5], elementwise=True, p=0.5)]),  # 460ms
                     A.HueSaturationValue(20, 0.2, 0.1),  # 494ms
-                    A.RandomShadow(shadow_roi=(0, 0, 1, 1)),  # 186ms
+                    # A.RandomShadow(shadow_roi=(0, 0, 1, 1)),  # 186ms
                     ToTensorV2()  # 34ms
                 ],
                 bbox_params=A.BboxParams(format='pascal_voc', label_fields=['class_labels']))
@@ -260,8 +259,8 @@ if __name__ == '__main__':
     #     axs[1].set_xlabel(f"{translab.sum()} {true}")
     # plt.show()
 
-    dataset = LabH5Dataset("data/phage_plates/train.h5", PlateAlbumentation(mode=6))
+    dataset = PlateDataset("data/plates_labeled/train/", PlateAlbumentation(mode=5))
     for ii in range(5):
-        image, target = dataset.__getitem__(0)
+        image, target = dataset.__getitem__(ii)
         utils.plot_plate_detector(image, target)
     plt.show()
