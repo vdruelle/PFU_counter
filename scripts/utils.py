@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 import numpy as np
 import torchvision
+import pandas as pd
 
 
 def plot_plate_detector(image, target):
@@ -109,10 +110,12 @@ def load_image_from_file(path, dtype="float"):
     assert dtype in ["int", "float"], "datatype must be int or float"
     from PIL import Image
     image = Image.open(path)
-    image = image.transpose(Image.ROTATE_270)  # Because PIL consider longest side to be width
+    image = np.asarray(image, dtype=np.uint8)
+    image = np.rot90(image, 3)
     if dtype == "float":
-        image = np.array(image) / 255
-    return image
+        return image.astype(np.float32) / 255
+    else:
+        return image
 
 
 def combine_label_files(original_label_folder, additional_label_folder, combined_label_folder):
@@ -132,3 +135,29 @@ def combine_label_files(original_label_folder, additional_label_folder, combined
         cdf = pd.concat([odf, adf])
 
         cdf.to_csv(combined_file, sep=" ", header=False, index=False)
+
+
+def boxes_and_labels_from_file(label_file, image_height, image_width):
+    """
+    Creates the boxes and labels list from the label_file.
+    """
+    df = pd.read_csv(label_file, sep=" ", names=["label", "cx", "cy", "w", "h"])
+    df["label"] += 1  # label 0 must be background
+    df2 = df.copy(deep=True)
+    df2.columns = ["label", "x1", "y1", "x2", "y2"]
+    df2["x1"] = (df["cx"] - df["w"] / 2.0) * image_width
+    df2["y1"] = (df["cy"] - df["h"] / 2.0) * image_height
+    df2["x2"] = (df["cx"] + df["w"] / 2.0) * image_width
+    df2["y2"] = (df["cy"] + df["h"] / 2.0) * image_height
+    boxes = df2[["x1", "y1", "x2", "y2"]].values.tolist()
+    labels = df["label"].values.tolist()
+
+    return boxes, labels
+
+
+def target_from_file(label_file, image_height, image_width):
+    """
+    Creates the target dictionary need for the RCNN PlateDetector network from the label_file.
+    """
+    boxes, labels = boxes_and_labels_from_file(label_file, image_height, image_width)
+    return {"labels": labels, "boxes": boxes}
