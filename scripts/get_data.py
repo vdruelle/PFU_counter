@@ -347,10 +347,26 @@ def create_plate_data(image_label_folder="data/plates_labeled/"):
         os.system(f"cp {old_label_path} {new_label_path}")
 
 
+def add_plate_data(folder_path, destination_folder):
+    """
+    Process the image in the define folder and adds them to the destination_folder.
+    """
+    from PIL import Image
+    os.makedirs(destination_folder, exist_ok=True)
+    image_list = list(sorted(os.listdir(folder_path)))
+
+    for image_name in image_list:
+        os.system(f"exiftool -Orientation= {folder_path+image_name} -o {destination_folder+image_name}")
+        image = Image.open(destination_folder + image_name)
+        image = image.transpose(Image.ROTATE_270)
+        image.save(destination_folder + image_name)
+
+
 if __name__ == '__main__':
     # generate_cell_data()
     # make_spots_label("data/phage_spots_labels/labels.csv", "data/phage_spots_labels/")
     # generate_phage_data()
     # generate_plate_data()
-    # inspect_plate_data(start_idx=50)
-    create_plate_data()
+    # inspect_plate_data("data/plates_minimal_spot/")
+    # create_plate_data()
+    add_plate_data("data/test_raw/", "data/test_raw_destination/")

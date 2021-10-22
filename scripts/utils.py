@@ -114,7 +114,6 @@ def load_image_from_file(path, dtype="float"):
     from PIL import Image
     image = Image.open(path)
     image = np.asarray(image, dtype=np.uint8)
-    image = np.rot90(image, 3)
     if dtype == "float":
         return image.astype(np.float32) / 255
     else:
