@@ -21,7 +21,7 @@ def plot_plate_detector(image, target, threshold=0.3):
         idxs = range(len(target["boxes"]))
 
     for ii in idxs:
-        if target["labels"][ii] == 4:  # Dilution rows
+        if target["labels"][ii] == 3:  # Dilution spots
             if target["scores"][ii] < threshold:
                 continue
         box = target["boxes"][ii]

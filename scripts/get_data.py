@@ -266,27 +266,6 @@ def generate_plate_data():
     valid_h5.close()
 
 
-def boxes_from_label_file(label_file, image_height, image_width, max_length, pad_value=-1):
-    """
-    Returns labels and boxes as lists, as expected by the RCNN network. Pad with -1 to max length to get
-    constant output sizes.
-    """
-    df = pd.read_csv(label_file, sep=" ", names=["label", "cx", "cy", "w", "h"])
-    df["label"] += 1  # label 0 must be background
-    df2 = df.copy(deep=True)
-    df2.columns = ["label", "x1", "y1", "x2", "y2"]
-    df2["x1"] = (df["cx"] - df["w"] / 2.0) * image_width
-    df2["y1"] = (df["cy"] - df["h"] / 2.0) * image_height
-    df2["x2"] = (df["cx"] + df["w"] / 2.0) * image_width
-    df2["y2"] = (df["cy"] + df["h"] / 2.0) * image_height
-    boxes = df2[["x1", "y1", "x2", "y2"]].values.tolist()
-    boxes += [[pad_value, pad_value, pad_value, pad_value]] * (max_length - len(boxes))  # padding
-    labels = df["label"].values.tolist()
-    labels += [pad_value] * (max_length - len(labels))  # padding
-
-    return boxes, labels
-
-
 def inspect_plate_data(image_label_folder="data/plates_labeled/", start_idx=0):
     """
     Shows the plate images and respective labels in the folder. Use the start_idx argument to specify at which
@@ -295,7 +274,6 @@ def inspect_plate_data(image_label_folder="data/plates_labeled/", start_idx=0):
     import utils
     import matplotlib.pyplot as plt
     img_size = (4608, 3456)
-    label_size = 20
 
     image_list = list(sorted(os.listdir(image_label_folder + "images/")))
     labels_list = list(sorted(os.listdir(image_label_folder + "labels/")))
@@ -303,8 +281,8 @@ def inspect_plate_data(image_label_folder="data/plates_labeled/", start_idx=0):
         print(f"Image : {image_name}")
         image = utils.load_image_from_file(image_label_folder + "images/" + image_name, dtype="int")
 
-        boxes, labels = boxes_from_label_file(
-            image_label_folder + "labels/" + label_name, *img_size, max_length=label_size)
+        boxes, labels = utils.boxes_and_labels_from_file(
+            image_label_folder + "labels/" + label_name, *img_size)
 
         utils.plot_plate_data(image, boxes, labels)
         plt.show()
@@ -312,7 +290,7 @@ def inspect_plate_data(image_label_folder="data/plates_labeled/", start_idx=0):
 
 def create_plate_data(image_label_folder="data/plates_labeled/"):
     """
-    Creates the plate datasets (train + test) in numpy/list format and saves them in the corresponding folder.
+    Creates the plate datasets (train + test) saves them in the corresponding folder.
     """
     image_list = list(sorted(os.listdir(os.path.join(image_label_folder, "images"))))
     os.makedirs(image_label_folder + "train/images/", exist_ok=True)
@@ -367,6 +345,6 @@ if __name__ == '__main__':
     # make_spots_label("data/phage_spots_labels/labels.csv", "data/phage_spots_labels/")
     # generate_phage_data()
     # generate_plate_data()
-    inspect_plate_data("data/plates_labeled_minimal/spot_labeling/")
+    inspect_plate_data("data/plates_labeled/spot_labeling/")
     # create_plate_data()
     # add_plate_data("data/plates_raw/lab_raw_11-10-2021/", "data/plates_raw/lab_raw_11-10-2021_oriented/")

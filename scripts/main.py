@@ -98,7 +98,7 @@ def optimize_plate_detection():
     Train a FasterRCNN to do plate element detection using the LabH5Dataset.
     """
     device = torch.device('cuda:0' if torch.cuda.is_available() else print("GPU not available"))
-    writer = SummaryWriter('runs/PlateDetector_optimized_4')
+    writer = SummaryWriter('runs/PlateDetector_optimized_test')
 
     dataset_folder = {"train": "data/plates_labeled/train/", "test": "data/plates_labeled/test/"}
     plate_dataset = {}
@@ -165,7 +165,7 @@ def optimize_plate_detection():
 
         lr_scheduler.step()
 
-    torch.save(model.state_dict(), "model_saves/Optimized_4.pt")
+    # torch.save(model.state_dict(), "model_saves/Optimized_4.pt")
     print("That's it!")
 
 
@@ -249,4 +249,4 @@ def compute_validation_errors(predictions, targets):
 if __name__ == '__main__':
     # train_plate_detection()
     # optimize_plate_detection()
-    predict_plate("model_saves/Optimized_0.pt")
+    predict_plate("model_saves/Plate_detection.pt")
