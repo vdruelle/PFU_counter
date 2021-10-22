@@ -201,7 +201,7 @@ class PlateAlbumentation(object):
                              A.GaussNoise(0.1, p=0.5),  # 1266ms
                              A.MultiplicativeNoise([0.5, 1.5], elementwise=True, p=0.5)]),  # 460ms
                     A.HueSaturationValue(20, 0.2, 0.1),  # 494ms
-                    # A.RandomShadow(shadow_roi=(0, 0, 1, 1)),  # 186ms
+                    A.RandomShadow(shadow_roi=(0, 0, 1, 1)),  # 186ms
                     ToTensorV2()  # 34ms
                 ],
                 bbox_params=A.BboxParams(format='pascal_voc', label_fields=['class_labels']))

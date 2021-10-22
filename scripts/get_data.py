@@ -367,6 +367,6 @@ if __name__ == '__main__':
     # make_spots_label("data/phage_spots_labels/labels.csv", "data/phage_spots_labels/")
     # generate_phage_data()
     # generate_plate_data()
-    # inspect_plate_data("data/plates_minimal_spot/")
+    inspect_plate_data("data/plates_labeled_minimal/spot_labeling/")
     # create_plate_data()
-    add_plate_data("data/test_raw/", "data/test_raw_destination/")
+    # add_plate_data("data/plates_raw/lab_raw_11-10-2021/", "data/plates_raw/lab_raw_11-10-2021_oriented/")
