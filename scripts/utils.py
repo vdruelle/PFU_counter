@@ -145,16 +145,33 @@ def boxes_and_labels_from_file(label_file, image_height, image_width):
     """
     df = pd.read_csv(label_file, sep=" ", names=["label", "cx", "cy", "w", "h"])
     df["label"] += 1  # label 0 must be background
+    df2 = label_relative_to_absolute(df, image_width, image_height)
+    boxes = df2[["x1", "y1", "x2", "y2"]].values.tolist()
+    labels = df["label"].values.tolist()
+
+    return boxes, labels
+
+
+def label_relative_to_absolute(df, image_width, image_height):
+    "Converts df containing labels from relative values (cx cy w h) to absolute values (x1 y1 x2 y1)"
     df2 = df.copy(deep=True)
     df2.columns = ["label", "x1", "y1", "x2", "y2"]
     df2["x1"] = (df["cx"] - df["w"] / 2.0) * image_width
     df2["y1"] = (df["cy"] - df["h"] / 2.0) * image_height
     df2["x2"] = (df["cx"] + df["w"] / 2.0) * image_width
     df2["y2"] = (df["cy"] + df["h"] / 2.0) * image_height
-    boxes = df2[["x1", "y1", "x2", "y2"]].values.tolist()
-    labels = df["label"].values.tolist()
+    return df2
 
-    return boxes, labels
+
+def label_absolute_to_relative(df, image_width, image_height):
+    "Converts df containing labels from absolute values (x1 y1 x2 y2) to relative values (cx cy w h)"
+    df2 = df.copy(deep=True)
+    df2.columns = ["label", "cx", "cy", "w", "h"]
+    df2["cx"] = (df["x1"] + df["x2"]) / (2.0 * image_width)
+    df2["cy"] = (df["y1"] + df["y2"]) / (2.0 * image_height)
+    df2["w"] = (df["x2"] - df["x1"]) / image_width
+    df2["h"] = (df["y2"] - df["y1"]) / image_height
+    return df2
 
 
 def target_from_file(label_file, image_height, image_width):
