@@ -8,6 +8,8 @@ We input the raw picture of the agar plate and use a FasterRCNN network (mobilen
  - The phage names (written below the plate name). They correspond to the different columns.
  - All the spots on the plate. They are dilution droplets that the experimentalist put on the agar.
 
+![Example of prediction](Prediction_example.png)
+
 ### Plate element cleaning
 From the above results, a hand made script would separate the dilution spots into column (for each phages) and rows (for dilution level).
 Once this is made, it would select the dilution spots where you can actually count single colonies, extract them and give them as input for the next part of the pipeline.
