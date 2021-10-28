@@ -58,131 +58,39 @@ def plate_extraction(image, detection):
 
     return detector_images
 
-
-def find_raw_peaks_and_valleys(hist, min_peak_to_peak_distance):
+def map_spots(detector_output, spot_size, slack=0.7):
     """
-    Finds the raw peaks and valleys from the Y histograms of the images and returns them.
+    Computes the columns and rows of the dilution spots. Trivial way of doing it for now, might need some
+    improvements.
     """
-    peak_idxs = scipy.signal.find_peaks(hist, distance=min_peak_distance)[0]
-    valley_idxs = scipy.signal.find_peaks(-hist, distance=min_peak_distance)[0]
-    return peak_idxs, valley_idxs
+    spot_boxes = detector_output["boxes"][detector_output["labels"] == 3]
+    avg_x = torch.mean(torch.stack((spot_boxes[:, 0], spot_boxes[:, 2])), axis=0)
+    avg_y = torch.mean(torch.stack((spot_boxes[:, 1], spot_boxes[:, 3])), axis=0)
 
+    rows = torch.zeros_like(avg_x)
+    columns = torch.zeros_like(avg_x)
 
-def estimate_spot_size(peak_idxs, valley_idxs, column_width):
-    """
-    Find the most likely distance between spots from the peaks and valleys and returns it.
-    """
-    peak_diff = np.diff(peak_idxs)
-    valley_diff = np.diff(valley_idxs)
-    peak_to_valley = 2 * np.diff(np.sort(np.concatenate((peak_idxs, valley_idxs))))
-    all_diffs = np.concatenate((peak_diff, valley_diff, peak_to_valley))
-    inferred_spot_size = round(np.median(all_diffs))
-    if inferred_spot_size > 1.2 * column_width or inferred_spot_size < 0.7 * column_width:
-        print("There might be an error in spot size estimate." +
-              f" \nInferred spot size is {inferred_spot_size} while column width is {column_width}")
-    return inferred_spot_size
+    counter = 1
+    # Detect the columns
+    for ii in range(columns.shape[0]):
+        if columns[ii] == 0:
+            x = avg_x[ii]
+            similar = torch.logical_and((avg_x < (x + spot_size * slack)),
+                                        (avg_x > (x - spot_size * slack)))
+            columns[similar] = counter
+            counter += 1
 
+    # Detect the rows
+    counter = 1
+    for ii in range(rows.shape[0]):
+        if rows[ii] == 0:
+            y = avg_y[ii]
+            similar = torch.logical_and((avg_y < (y + spot_size * slack)),
+                                        (avg_y > (y - spot_size * slack)))
+            rows[similar] = counter
+            counter += 1
 
-# def clean_peaks(idxs, inferred_spot_size, size_threshold=0.1):
-#     """
-#     Clean the valleys/peaks based on whether they are distant from other peaks/valleys by the inferred spot
-#     size.
-#     """
-#     diff = np.diff(idxs)
-#     mask = np.logical_and(diff < (1 + size_threshold) * inferred_spot_size,
-#                           diff > (1 - size_threshold) * inferred_spot_size)
-#     mask1 = np.concatenate((mask, [False]))
-#     mask2 = np.concatenate(([False], mask))
-#     mask = np.logical_or(mask1, mask2)
-#     breakpoint()
-#     good_idxs = idxs[mask]
-#     return good_idxs
-
-
-def best_peak_and_valley(peak_idxs, valley_idxs, inferred_spot_size, size_threshold=0.1):
-    """
-    Returns the best peak and best valley. How good a peak or valley is is decided based on the number of
-    neighbors peak/valleys that are at the inferred_spot_size distance from them.
-    """
-    def smooth(y, box_pts):
-        box = np.ones(box_pts) / box_pts
-        y_smooth = np.convolve(y, box, mode='same')
-        return y_smooth
-
-    # Peaks
-    diff = np.diff(peak_idxs)
-    mask = np.logical_and(diff < (1 + size_threshold) * inferred_spot_size,
-                          diff > (1 - size_threshold) * inferred_spot_size)
-    mask1 = np.concatenate((mask, [False]))
-    mask2 = np.concatenate(([False], mask))
-    rank_peaks = np.add(mask1, mask2, dtype=np.int64)
-
-    # Valleys
-    diff = np.diff(valley_idxs)
-    mask = np.logical_and(diff < (1 + size_threshold) * inferred_spot_size,
-                          diff > (1 - size_threshold) * inferred_spot_size)
-    mask1 = np.concatenate((mask, [False]))
-    mask2 = np.concatenate(([False], mask))
-    rank_valleys = np.add(mask1, mask2, dtype=np.int64)
-
-    # Selecting best peak/valley from combined analysis
-    idxs = np.concatenate((peak_idxs, valley_idxs))
-    ranks = np.concatenate((rank_peaks, rank_valleys))
-    sorted_idxs = np.argsort(idxs)
-    idxs = idxs[sorted_idxs]
-    ranks = ranks[sorted_idxs]
-    ranks = smooth(ranks, 3)
-
-    peak_ranks = ranks[np.isin(idxs, peak_idxs)]
-    valley_ranks = ranks[np.isin(idxs, valley_idxs)]
-
-    return peak_idxs[np.argmax(peak_ranks)], valley_idxs[np.argmax(valley_ranks)]
-
-
-def refine_peaks(idxs, best, inferred_spot_size, image_height, threshold=0.1):
-    """
-    Refines the peaks/valleys using the best predicted peak/valley and the inferred spot size.
-    """
-    cleaned = np.array([best])
-    # Higher dilutions
-    pred = 1
-    while pred > 0:
-        ref = cleaned[0]
-        pred = ref - inferred_spot_size
-        mask = np.logical_and(idxs < pred + threshold * inferred_spot_size,
-                              idxs > pred - threshold * inferred_spot_size)
-        if True in mask:
-            pred = idxs[mask][0]
-        cleaned = np.concatenate(([pred], cleaned))
-
-    # Lower dilutions
-    pred = 1
-    while pred < image_height:
-        ref = cleaned[-1]
-        pred = ref + inferred_spot_size
-        mask = np.logical_and(idxs < pred + threshold * inferred_spot_size,
-                              idxs > pred - threshold * inferred_spot_size)
-        if True in mask:
-            pred = idxs[mask][0]
-        cleaned = np.concatenate((cleaned, [pred]))
-
-    # Removing peaks/valleys outside of image
-    cleaned = cleaned[cleaned >= 0]
-    cleaned = cleaned[cleaned <= image_height]
-
-    return cleaned
-
-
-def clean_cuts(cuts, spot_size, image_height, threshold=0.3):
-    """
-    Cleans the given cuts for the detection of spots and returns them.
-    It removes the cuts on the top or below if the rest of the image if inferior to threshold*spot_size
-    """
-    if cuts[0] < threshold * spot_size:
-        cuts = np.delete(cuts, 0)
-    if image_height - cuts[-1] < threshold * spot_size:
-        cuts = np.delete(cuts, -1)
-    return cuts
+    return rows, columns
 
 
 if __name__ == '__main__':
@@ -194,77 +102,17 @@ if __name__ == '__main__':
 
     # --- Plate detection part ---
     image, detector_output = plate_detection(image_path, plate_detector_save)
-    idxs = utils.batch_cleanup_boxes(
-        detector_output["boxes"], detector_output["scores"], detector_output["labels"], 0.15)
-    detector_output_cleaned = {k: v[idxs] for k, v in detector_output.items()}
+
+    # --- Filtering of the detection ---
+    detector_output_cleaned = utils.clean_plate_detector_output(detector_output, 0.15, 0.3)
     if show_intermediate:
-        utils.plot_plate_detector(image, detector_output)
+        utils.plot_plate_detector(image, detector_output_cleaned)
 
     # --- Extraction of images from box detection ---
     detector_images = plate_extraction(image, detector_output_cleaned)
-    mean_column_width = np.mean([im.shape[2] for im in detector_images["phage_columns"]])
 
-    # --- Extraction of spot from phage columns according to grayscale histogram
-    # for column in detector_images["phage_columns"]:
-    column = detector_images["phage_columns"][0]
-    column = column.cpu().numpy().transpose((2, 1, 0))
-    column_smoothed = scipy.ndimage.gaussian_filter(np.sum(column, axis=2), 25)
-    nb_dilution_from_shape = column.shape[1] / column.shape[0]
+    # --- Sorting dilution spots into rows and columns  ---
+    median_spot_size = np.median([[x.shape[1], x.shape[2]] for x in detector_images["phage_spots"]])
+    rows, columns = map_spots(detector_output_cleaned, median_spot_size)
 
-    hist = np.sum(column_smoothed, axis=0)
-    min_peak_distance = 0.7 * mean_column_width
-    peak_idxs, valley_idxs = find_raw_peaks_and_valleys(hist, min_peak_distance)
-
-    # plt.figure()
-    # plt.plot(hist)
-    # plt.plot(peak_idxs, hist[peak_idxs], 'r.')
-    # plt.plot(valley_idxs, hist[valley_idxs], 'g.')
-
-    # Selection of the size of plaques
-    inferred_spot_size = estimate_spot_size(peak_idxs, valley_idxs, mean_column_width)
-
-    # Selecting best peak and valley
-    best_peak, best_valley = best_peak_and_valley(peak_idxs, valley_idxs, inferred_spot_size)
-    # plt.plot(best_peak, hist[best_peak], 'r.', markersize=10)
-    # plt.plot(best_valley, hist[best_valley], 'g.', markersize=10)
-
-    # Cleaning all peaks and valleys
-    cleaned_valleys = refine_peaks(valley_idxs, best_valley, inferred_spot_size, column.shape[1])
-    cleaned_peaks = refine_peaks(peak_idxs, best_peak, inferred_spot_size, column.shape[1])
-
-    # Test whether spot are dark and bacteria bright or the opposit
-    histx = np.sum(column_smoothed, axis=1)
-    if 0.5 * (histx[0] + histx[-1]) > np.mean(histx):
-        # Phages are dark
-        cuts = cleaned_peaks
-    else:
-        # Phages are bright
-        cuts = cleaned_valleys
-
-    cuts = clean_cuts(cuts, inferred_spot_size, column.shape[1])
-
-    if cuts[0] < inferred_spot_size * 0.5:
-        selected_cuts = cuts[0:3]
-    else:
-        selected_cuts = np.concatenate(([0], cuts[0:2]))
-
-    plt.figure()
-    plt.imshow(column, cmap="gray")
-    plt.plot(cuts, np.zeros_like(cuts), "r+", markersize=15)
-    plt.plot(selected_cuts, np.zeros_like(selected_cuts), "g.", markersize=15)
-
-    spot_to_count = [column[:, selected_cuts[0]:selected_cuts[1]],
-                     column[:, selected_cuts[1]:selected_cuts[2]]]
-
-    for spot in spot_to_count:
-        plt.figure()
-        plt.imshow(spot)
-
-    # Colony counting part
-    device = torch.device('cuda:0' if torch.cuda.is_available() else print("GPU not available"))
-    model = UNet()
-    model.to(device)
-    model.load_state_dict(torch.load("model_saves/Counter_phages.pt"))
-    spot_image = spot_to_count[0]
-    spot_image = torch.tensor(np.transpose(spot_image, (2, 0, 1)), dtype=torch.float32)
-    image.to(device)
+    plt.show()
