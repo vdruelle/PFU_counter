@@ -23,9 +23,10 @@ def train_plate_detection():
     Train a FasterRCNN to do plate element detection using the LabH5Dataset.
     """
     device = torch.device('cuda:0' if torch.cuda.is_available() else print("GPU not available"))
-    writer = SummaryWriter('runs/Plate_detector_0')
+    writer = SummaryWriter('runs/Plate_detector')
 
-    dataset_folder = {"train": "data/plates_labeled/train/", "test": "data/plates_labeled/test/"}
+    dataset_folder = {"train": "data/plates_labeled/spot_labeling/train/",
+                      "test": "data/plates_labeled/spot_labeling/test/"}
     plate_dataset = {}
     for phase in ["train", "test"]:
         plate_dataset[phase] = PlateDataset(dataset_folder[phase],
@@ -34,18 +35,18 @@ def train_plate_detection():
     dataloader = {}
     for phase in ["train", "test"]:
         dataloader[phase] = torch.utils.data.DataLoader(
-            plate_dataset[phase], batch_size=4, num_workers=4, shuffle=(phase == "train"),
+            plate_dataset[phase], batch_size=2, num_workers=4, shuffle=(phase == "train"),
             collate_fn=collate_fn)
 
     # The model
-    model = PlateDetector(num_classes=5, backbone="mobilenet", trainable_backbone_layers=None)
+    model = PlateDetector(num_classes=4, backbone="mobilenet", trainable_backbone_layers=None)
     model.to(device)
 
     # Optimizer
     optimizer = torch.optim.SGD(model.parameters(), lr=5e-3, momentum=0.9, weight_decay=5e-4)
-    lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=15, gamma=0.1)
+    lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=30, gamma=0.1)
 
-    num_epochs = 20
+    num_epochs = 60
     n_iter = 0
     for epoch in range(num_epochs):
         print(f"--- Epoch {epoch} ---")
@@ -169,30 +170,25 @@ def optimize_plate_detection():
     print("That's it!")
 
 
-def predict_plate(model_path="model_saves/Plate_detection.pt"):
+def predict_plate(model_path="model_saves/Plate_detection.pt", dataset_folder="data/spot_labeling/plates_labeled/test/"):
     """
     Function to test the predictions of the network trained by train_plate_detection().
     """
     device = torch.device('cuda:0' if torch.cuda.is_available() else print("GPU not available"))
 
-    dataset_folder = {"train": "data/plates_labeled/train/", "test": "data/plates_labeled/test/"}
-    plate_dataset = {}
-    for phase in ["train", "test"]:
-        plate_dataset[phase] = PlateDataset(dataset_folder[phase], None)
+    plate_dataset = PlateDataset(dataset_folder, None)
 
     dataloader = {}
-    for phase in ["train", "test"]:
-        dataloader[phase] = torch.utils.data.DataLoader(
-            plate_dataset[phase], batch_size=1, num_workers=1, shuffle=(phase == "train"),
-            collate_fn=collate_fn)
+    dataloader = torch.utils.data.DataLoader(
+        plate_dataset, batch_size=1, num_workers=1, shuffle=False, collate_fn=collate_fn)
 
-    model = PlateDetector()
+    model = PlateDetector(num_classes=4, backbone="mobilenet")
     model.to(device)
     model.load_state_dict(torch.load(model_path))
 
     model.eval()
     with torch.no_grad():
-        for images, targets in dataloader["test"]:
+        for images, targets in dataloader:
             images = list(image.to(device) for image in images)
 
             outputs = model(images)
@@ -249,4 +245,4 @@ def compute_validation_errors(predictions, targets):
 if __name__ == '__main__':
     # train_plate_detection()
     # optimize_plate_detection()
-    predict_plate("model_saves/Plate_detection.pt")
+    predict_plate("model_saves/Plate_detection.pt", "data/plates_labeled/spot_labeling/test/")

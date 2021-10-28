@@ -28,7 +28,7 @@ def train_small_dataset(dataset_folder, writer_name, model_save_name, num_classe
     plate_dataset = {}
     for phase in ["train", "test"]:
         plate_dataset[phase] = PlateDataset(dataset_folder[phase],
-                                            PlateAlbumentation(0) if phase == "train" else None)
+                                            PlateAlbumentation(4) if phase == "train" else None)
 
     dataloader = {}
     for phase in ["train", "test"]:
@@ -39,10 +39,10 @@ def train_small_dataset(dataset_folder, writer_name, model_save_name, num_classe
     # The model
     model = PlateDetector(num_classes=num_classes + 1, backbone="mobilenet", trainable_backbone_layers=None)
     model.to(device)
-    model.load_state_dict(torch.load("model_saves/Plate_detector_spots.pt"))
+    model.load_state_dict(torch.load("model_saves/Plate_detector_spots5.pt"))
 
     # Optimizer
-    optimizer = torch.optim.SGD(model.parameters(), lr=1e-3, momentum=0.9, weight_decay=5e-4)
+    optimizer = torch.optim.SGD(model.parameters(), lr=5e-4, momentum=0.9, weight_decay=5e-4)
     lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=30, gamma=0.1)
 
     num_epochs = 40
@@ -143,11 +143,11 @@ def predict_full_dataset(model_save_path, image_folder, output_label_folder, num
 
 if __name__ == '__main__':
     # data_folder = "data/plates_labeled_minimal/spot_labeling/"
-    # writer_name = "PlateDetector_minimal_spot2"
-    # model_save_name = "Plate_detector_spots2"
+    # writer_name = "PlateDetector_minimal_spots6"
+    # model_save_name = "Plate_detector_spots6"
     # train_small_dataset(data_folder, writer_name, model_save_name, num_classes=3)
 
-    model_save = "model_saves/Plate_detector_spots.pt"
+    model_save = "model_saves/Plate_detector_spots5.pt"
     image_folder = "data/plates_labeled/spot_labeling/images"
     output_folder = "data/plates_labeled/spot_labeling/labels"
     predict_full_dataset(model_save, image_folder, output_folder, num_classes=3, show=False)
