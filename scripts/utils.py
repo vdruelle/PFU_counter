@@ -5,7 +5,7 @@ import torchvision
 import pandas as pd
 
 
-def plot_plate_detector(image, target, threshold=0.3):
+def plot_plate_detector(image, target):
     """
     Takes in torch tensor (on gpu) and plots the predictions of the network.
     """
@@ -16,14 +16,9 @@ def plot_plate_detector(image, target, threshold=0.3):
     plt.imshow(image)
 
     if "scores" in target.keys():
-        idxs = batch_cleanup_boxes(target["boxes"], target["scores"], target["labels"], 0.15)
-    else:
-        idxs = range(len(target["boxes"]))
+        target = clean_plate_detector_output(target)
 
-    for ii in idxs:
-        if target["labels"][ii] == 3:  # Dilution spots
-            if target["scores"][ii] < threshold:
-                continue
+    for ii in range(len(target["boxes"])):
         box = target["boxes"][ii]
         plt.gca().add_patch(Rectangle((box[0], box[1]), box[2] - box[0], box[3] - box[1],
                                       facecolor="none",
@@ -42,7 +37,7 @@ def clean_plate_detector_output(output, iou_threshold=0.15, score_threshold=0.3)
     idxs = batch_cleanup_boxes(output["boxes"], output["scores"], output["labels"], iou_threshold)
     output_cleaned = {k: v[idxs] for k, v in output.items()}
     idxs = output_cleaned["scores"] >= score_threshold
-    output_cleaned = {k: v[idxs] for k, v in output.items()}
+    output_cleaned = {k: v[idxs] for k, v in output_cleaned.items()}
     return output_cleaned
 
 
