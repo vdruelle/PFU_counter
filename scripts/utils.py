@@ -34,6 +34,18 @@ def plot_plate_detector(image, target, threshold=0.3):
                      color=colors[target["labels"][ii].item()])
 
 
+def clean_plate_detector_output(output, iou_threshold=0.15, score_threshold=0.3):
+    """
+    Takes the output of the PlateDetector network and cleans it to remove boxes that overlap too much or have
+    a low score associated.
+    """
+    idxs = batch_cleanup_boxes(output["boxes"], output["scores"], output["labels"], iou_threshold)
+    output_cleaned = {k: v[idxs] for k, v in output.items()}
+    idxs = output_cleaned["scores"] >= score_threshold
+    output_cleaned = {k: v[idxs] for k, v in output.items()}
+    return output_cleaned
+
+
 def plot_plate_data(image, boxes, labels):
     """
     Takes inputs as numpy arrays and plot them.
