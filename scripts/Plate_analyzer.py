@@ -19,7 +19,7 @@ def plate_detection(image_path, plate_detector_save):
     """
     # Setting up the model
     device = torch.device('cuda:0' if torch.cuda.is_available() else print("GPU not available"))
-    model = PlateDetector()
+    model = PlateDetector(num_classes=4, backbone="mobilenet", trainable_backbone_layers=None)
     model.to(device)
     model.load_state_dict(torch.load(plate_detector_save))
     model.eval()
@@ -51,10 +51,10 @@ def plate_extraction(image, detection):
 
     detector_images["plate_name"] = sub_images[torch.where(detector_output_cleaned["labels"] == 1)[0]]
     detector_images["phage_names"] = sub_images[torch.where(detector_output_cleaned["labels"] == 2)[0]]
-    detector_images["phage_columns"] = []
+    detector_images["phage_spots"] = []
 
     for ii in torch.where(detector_output_cleaned["labels"] == 3)[0].tolist():
-        detector_images["phage_columns"] += [sub_images[ii]]
+        detector_images["phage_spots"] += [sub_images[ii]]
 
     return detector_images
 
@@ -188,8 +188,8 @@ def clean_cuts(cuts, spot_size, image_height, threshold=0.3):
 if __name__ == '__main__':
     plate_detector_save = "model_saves/Plate_detection.pt"
     phage_counter_save = "model_saves/Counter_phages.pt"
-    image_path = "data/lab_raw_good/20200204_115135.jpg"
-    # image_path = "data/lab_raw_good/20200204_115534.jpg"
+    image_path = "data/plates_labeled/spot_labeling/images/20200204_115135.jpg"
+    # image_path = "data/plates_labeled/spot_labeling/images/20200204_115534.jpg"
     show_intermediate = False
 
     # --- Plate detection part ---
