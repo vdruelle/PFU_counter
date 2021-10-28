@@ -97,6 +97,36 @@ def map_spots(detector_output, spot_size, slack=0.7):
     return rows, columns
 
 
+def spot_selection(detector_images, columns, rows):
+    """
+    Select the dilution spots where we should count the colonies. Very trivial for now, might need to
+    improve later.
+    """
+    for im in detector_images["phage_spots"]:
+        im["to_count"] = False
+
+    unique_columns = torch.unique(columns)
+    for column in unique_columns:
+        idxs = torch.where(columns == column)[0]
+        spots_rows = []
+        for idx in idxs:
+            spots_rows += [detector_images["phage_spots"][idx]["row"]]
+        spots_rows = torch.tensor(spots_rows)
+        row1 = torch.max(spots_rows)
+        spots_rows[torch.argmax(spots_rows)] = -1
+        row2 = torch.max(spots_rows)
+
+        # Very ugly way to tag the images but should do the trick
+        for idx in idxs:
+            if detector_images["phage_spots"][idx]["column"] == column:
+                if detector_images["phage_spots"][idx]["row"] == row1:
+                    detector_images["phage_spots"][idx]["to_count"] = True
+                elif detector_images["phage_spots"][idx]["row"] == row2:
+                    detector_images["phage_spots"][idx]["to_count"] = True
+
+    return detector_images
+
+
 if __name__ == '__main__':
     plate_detector_save = "model_saves/Plate_detection.pt"
     phage_counter_save = "model_saves/Counter_phages.pt"
@@ -124,41 +154,13 @@ if __name__ == '__main__':
     detector_images["phage_spots"] = tmp
 
     # --- Selecting dilution spots to count ---
-    def spot_selection(detector_images, columns, rows):
-        """
-        Select the dilution spots where we should count the colonies. Very trivial for now, might need to
-        improve later.
-        """
-        for im in detector_images["phage_spots"]:
-            im["to_count"] = False
+    detector_images = spot_selection(detector_images, columns, rows)
 
-        unique_columns = torch.unique(columns)
-        for column in unique_columns:
-            idxs = torch.where(columns == column)[0]
-            spots_rows = []
-            for idx in idxs:
-                spots_rows += [detector_images["phage_spots"][idx]["row"]]
-            spots_rows = torch.tensor(spots_rows)
-            row1 = torch.max(spots_rows)
-            spots_rows[torch.argmax(spots_rows)] = -1
-            row2 = torch.max(spots_rows)
-
-            # Very ugly way to tag the images but should do the trick
-            for idx in idxs:
-                if detector_images["phage_spots"][idx]["column"] == column:
-                    if detector_images["phage_spots"][idx]["row"] == row1:
-                        detector_images["phage_spots"][idx]["to_count"] = True
-                    elif detector_images["phage_spots"][idx]["row"] == row2:
-                        detector_images["phage_spots"][idx]["to_count"] = True
-
-        return detector_images
-
-    test = spot_selection(detector_images, columns, rows)
-
-    for spot in detector_images["phage_spots"]:
-        if spot["to_count"]:
-            plt.figure()
-            plt.imshow(spot["image"].cpu().numpy().transpose(1, 2, 0))
+    if show_intermediate:
+        for spot in detector_images["phage_spots"]:
+            if spot["to_count"]:
+                plt.figure()
+                plt.imshow(spot["image"].cpu().numpy().transpose(1, 2, 0))
 
     # --- Feeding to the colony counter network ---
     # device = torch.device('cuda:0' if torch.cuda.is_available() else print("GPU not available"))
