@@ -11,7 +11,7 @@ from albumentations.pytorch import ToTensorV2
 from PIL import Image
 from typing import Optional
 import utils
-
+from scipy.ndimage import gaussian_filter
 
 class PlateDataset(data.Dataset):
     def __init__(self, data_dir, transform=None):
@@ -59,15 +59,15 @@ class SpotDataset(data.Dataset):
 
         image = utils.load_image_from_file(image_path, dtype="float")
         label = utils.load_image_from_file(label_path, dtype="float")
-        label *= 1000
         image, label = self.pad_to_correct_size(image, label)
-        if image.shape[0] != label.shape[0]:
-            print(f"Image shape is {image.shape} while label shape is {label.shape}")
+        label *= 1000
+        label = gaussian_filter(label, sigma=(1, 1), order=0)
 
         if self.transform is not None:
             return self.transform(image, label)
         else:
             image = torch.tensor(np.transpose(image, (2, 0, 1)), dtype=torch.float32)
+            label = np.expand_dims(label, axis=0)
             label = torch.tensor(label, dtype=torch.float32)
             return image, label
 
