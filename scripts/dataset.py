@@ -60,9 +60,9 @@ class SpotDataset(data.Dataset):
 
         image = utils.load_image_from_file(image_path, dtype="float")
         label = utils.load_image_from_file(label_path, dtype="float")
-        image, label = utils.pad_to_correct_size(image, label)
         label *= 1000
         label = gaussian_filter(label, sigma=(1, 1), order=0)
+        image, label = utils.pad_to_correct_size(image, label)
 
         if self.transform is not None:
             return self.transform(image, label)

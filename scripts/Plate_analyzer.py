@@ -132,7 +132,7 @@ if __name__ == '__main__':
     phage_counter_save = "model_saves/Counter_phages.pt"
     image_path = "data/plates_labeled/spot_labeling/images/20200204_115135.jpg"
     # image_path = "data/plates_labeled/spot_labeling/images/20200204_115534.jpg"
-    show_intermediate = True
+    show_intermediate = False
 
     # --- Plate detection part ---
     image, detector_output = plate_detection(image_path, plate_detector_save)
@@ -163,12 +163,24 @@ if __name__ == '__main__':
                 plt.imshow(spot["image"].cpu().numpy().transpose(1, 2, 0))
 
     # --- Feeding to the colony counter network ---
-    # device = torch.device('cuda:0' if torch.cuda.is_available() else print("GPU not available"))
-    # model = UNet()
-    # model.to(device)
-    # model.load_state_dict(torch.load("model_saves/Counter_phages.pt"))
-    # spot_image = spot_to_count[0]
-    # spot_image = torch.tensor(np.transpose(spot_image, (2, 0, 1)), dtype=torch.float32)
-    # image.to(device)
+
+    device = torch.device('cuda:0' if torch.cuda.is_available() else print("GPU not available"))
+    model = UNet()
+    model.to(device)
+    model.load_state_dict(torch.load("model_saves/Counter_phages.pt"))
+    model.eval()
+    with torch.no_grad():
+        for image_dict in detector_images["phage_spots"]:
+            if image_dict["to_count"]:
+                tmp = image_dict["image"].cpu().numpy().transpose(1, 2, 0)
+                tmp = utils.pad_image_to_correct_size(tmp)
+                tmp = torch.tensor(tmp.transpose(2, 0, 1)).to(device)
+                tmp = torch.unsqueeze(tmp, 0)  # adding one dimension
+                output = model(tmp)
+                plt.figure()
+                plt.imshow(image_dict["image"].cpu().numpy().transpose(1, 2, 0))
+                plt.figure()
+                plt.xlabel(f"Counts: {round(np.sum(output[0, 0, :, :].cpu().numpy())/1000, 2)}")
+                plt.imshow(output[0, 0, :, :].cpu().numpy())
 
     plt.show()
