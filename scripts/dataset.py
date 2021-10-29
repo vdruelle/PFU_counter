@@ -59,7 +59,10 @@ class SpotDataset(data.Dataset):
 
         image = utils.load_image_from_file(image_path, dtype="float")
         label = utils.load_image_from_file(label_path, dtype="float")
+        label *= 1000
         image, label = self.pad_to_correct_size(image, label)
+        if image.shape[0] != label.shape[0]:
+            print(f"Image shape is {image.shape} while label shape is {label.shape}")
 
         if self.transform is not None:
             return self.transform(image, label)
@@ -162,7 +165,15 @@ class H5Dataset(data.Dataset):
 
 
 if __name__ == '__main__':
-    from transforms import PlateAlbumentation
+    from transforms import PlateAlbumentation, CounterAlbumentation
+    import matplotlib.pyplot as plt
     dataset_folder = "data/phage_spots/"
-    dataset = SpotDataset(dataset_folder, transform=None)
+    dataset = SpotDataset(dataset_folder, transform=CounterAlbumentation(3))
     image, label = dataset[0]
+
+    plt.figure()
+    plt.imshow(image.cpu().numpy().transpose(1, 2, 0))
+    plt.figure()
+    plt.imshow(label.cpu().numpy()[0])
+
+    plt.show()
