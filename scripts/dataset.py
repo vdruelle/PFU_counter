@@ -42,6 +42,46 @@ class PlateDataset(data.Dataset):
             return torch.tensor(np.transpose(image, (2, 0, 1)), dtype=torch.float32), target
 
 
+class SpotDataset(data.Dataset):
+    def __init__(self, data_dir, transform=None):
+        self.image_dir = os.path.join(data_dir, "images")
+        self.label_dir = os.path.join(data_dir, "labels")
+        self.images = list(sorted(os.listdir(self.image_dir)))
+        self.labels = list(sorted(os.listdir(self.label_dir)))
+        self.transform = transform
+
+    def __len__(self):
+        return len(self.images)
+
+    def __getitem__(self, idx):
+        image_path = os.path.join(self.image_dir, self.images[idx])
+        label_path = os.path.join(self.label_dir, self.labels[idx])
+
+        image = utils.load_image_from_file(image_path, dtype="float")
+        label = utils.load_image_from_file(label_path, dtype="float")
+        image, label = self.pad_to_correct_size(image, label)
+
+        if self.transform is not None:
+            return self.transform(image, label)
+        else:
+            image = torch.tensor(np.transpose(image, (2, 0, 1)), dtype=torch.float32)
+            label = torch.tensor(label, dtype=torch.float32)
+            return image, label
+
+    def pad_to_correct_size(self, image, label, value=0):
+        """
+        Pad the images with the given value so that their shape is dividable by 8 on the X and Y axis. Does
+        it by adding the minimum number of values to each side.
+        """
+        pad_x = 8 - image.shape[1] % 8
+        pad_y = 8 - image.shape[0] % 8
+        image = np.pad(image, [(pad_y // 2, pad_y // 2 + pad_y % 2),
+                               (pad_x // 2, pad_x // 2 + pad_x % 2), (0, 0)], constant_values=value)
+        label = np.pad(label, [(pad_y // 2, pad_y // 2 + pad_y % 2),
+                               (pad_x // 2, pad_x // 2 + pad_x % 2)], constant_values=value)
+        return image, label
+
+
 class LabH5Dataset(data.Dataset):
     def __init__(self, dataset_path, transform=None):
         super(LabH5Dataset, self).__init__()
@@ -123,14 +163,6 @@ class H5Dataset(data.Dataset):
 
 if __name__ == '__main__':
     from transforms import PlateAlbumentation
-    dataset_folder = "data/plates_labeled/train/"
-    dataset = PlateDataset(dataset_folder, transform=PlateAlbumentation(0))
-    image, target = dataset[0]
-
-    dataset2 = LabH5Dataset("data/phage_plates/train.h5")
-    image2, target2 = dataset2[0]
-
-    assert image.dtype == image2.dtype, "dtype error"
-    assert type(target) == type(target2), "dtype error"
-    assert target["boxes"].dtype == target2["boxes"].dtype, "dtype error"
-    assert target["labels"].dtype == target2["labels"].dtype, "dtype error"
+    dataset_folder = "data/phage_spots/"
+    dataset = SpotDataset(dataset_folder, transform=None)
+    image, label = dataset[0]
