@@ -114,10 +114,10 @@ class Looper():
         print(f"{'Train' if not self.validation else 'Valid'} mean absolute error: {self.mean_abs_err:3.3f}")
         self.writer.add_scalar(
             f"Counter_loss/{'Train' if not self.validation else 'Valid'}", self.mean_abs_err, self.epoch)
-        if self.validation:
-            if self.epoch == 0:
-                grid = torchvision.utils.make_grid(self.images[-6:], nrow=20)
-                self.writer.add_image("images", grid, self.epoch)
-            grid2 = torchvision.utils.make_grid(
-                self.predictions[-6:], nrow=20, value_range=(0, 2), normalize=True)
-            self.writer.add_image("predictions", grid2, self.epoch)
+        # if self.validation:
+        #     if self.epoch == 0:
+        #         grid = torchvision.utils.make_grid(self.images[-6:], nrow=20)
+        #         self.writer.add_image("images", grid, self.epoch)
+        #     grid2 = torchvision.utils.make_grid(
+        #         self.predictions[-6:], nrow=20, value_range=(0, 2), normalize=True)
+        #     self.writer.add_image("predictions", grid2, self.epoch)
