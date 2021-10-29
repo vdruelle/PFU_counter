@@ -1,0 +1,16 @@
+*.lock
+*.log
+\.build
+\.cache
+\.editorconfig
+\.env
+\.git
+\.gitignore
+\.idea
+\.ignore
+\.ignore*
+\.prettierignore
+\.reports
+\.vscode
+\.vscode*
+node_modules

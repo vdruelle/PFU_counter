@@ -1,0 +1,13 @@
+\.build
+\.cache
+\.circleci*
+\.env*
+\.github
+\.idea
+\.ignore*
+\.reports
+\.vscode*
+node_modules
+public
+src/generated
+tsconfig.json

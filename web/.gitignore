@@ -1,0 +1,11 @@
+*.log
+\.build
+\.cache
+\.idea
+\.ignore
+\.ignore*
+\.temp
+\.tmp
+\.vscode
+\.vscode*
+node_modules/
