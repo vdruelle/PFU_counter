@@ -92,49 +92,52 @@ class CounterToTensor(object):
 
 
 class CounterAlbumentation(object):
-    def __init__(self, train=True, mode=0):
-        self.train = train
+    def __init__(self, mode=0):
         self.mode = mode
 
     def __call__(self, image, target):
-        if self.train:
-            if self.mode == 0:
-                transform = A.Compose(
-                    [
-                        A.Flip(p=0.5),
-                        A.RandomRotate90(p=0.5),
-                        ToTensorV2()
-                    ],
-                    additional_targets={"target": "image"})
-            if self.mode == 1:
-                transform = A.Compose(
-                    [
-                        A.Flip(p=0.5),
-                        A.Rotate(p=0.5),
-                        ToTensorV2()
-                    ],
-                    additional_targets={"target": "image"})
-            if self.mode == 2:
-                transform = A.Compose(
-                    [A.Compose(
-                        [
-                            A.ColorJitter(),
-                            A.GaussianBlur(blur_limit=(3, 5)),
-                            A.GaussNoise(0.002)
-                        ]),
-                     A.Compose(
-                        [
-                            A.Flip(p=0.5),
-                            A.Rotate(p=0.5),
-                            # A.RandomResizedCrop(256, 256, scale=(0.5, 0.9), ratio=(1, 1), p=0.5),
-                            ToTensorV2()
-                        ],
-                        additional_targets={"target": "image"})
-                     ]
-                )
-        else:
-            transform = A.Compose([ToTensorV2()],
-                                  additional_targets={"target": "image"})
+        if self.mode == 0:
+            transform = A.Compose(
+                [
+                    A.Flip(p=0.5),
+                    A.RandomRotate90(p=0.5),
+                    ToTensorV2()
+                ],
+                additional_targets={"target": "image"})
+        if self.mode == 1:
+            transform = A.Compose(
+                [A.Compose([A.RandomBrightnessContrast()]),
+                 A.Compose([
+                     A.Flip(p=0.5),
+                     A.RandomRotate90(p=0.5),
+                     ToTensorV2()],
+                     additional_targets={"target": "image"})
+                 ],
+            )
+        if self.mode == 2:
+            transform = A.Compose(
+                [A.Compose([A.ColorJitter()]),
+                 A.Compose([
+                     A.Flip(p=0.5),
+                     A.RandomRotate90(p=0.5),
+                     ToTensorV2()],
+                     additional_targets={"target": "image"})
+                 ],
+            )
+        if self.mode == 3:
+            transform = A.Compose(
+                [A.Compose([
+                    A.OneOf([A.GaussianBlur(blur_limit=(3, 7), p=0.5),
+                             A.GaussNoise(0.05, p=0.5),
+                             A.MultiplicativeNoise([0.98, 1.02], elementwise=True, p=0.5)]),
+                    A.ColorJitter()]),
+                 A.Compose([
+                     A.Flip(p=0.5),
+                     A.RandomRotate90(p=0.5),
+                     ToTensorV2()],
+                     additional_targets={"target": "image"})
+                 ],
+            )
 
         transformed = transform(image=image, target=target)
         return transformed["image"], transformed["target"]
@@ -187,7 +190,7 @@ class PlateAlbumentation(object):
                     A.RandomBrightnessContrast(),
                     A.OneOf([A.GaussianBlur(blur_limit=(3, 21), p=0.5),
                              A.GaussNoise(0.1, p=0.5),
-                             A.MultiplicativeNoise([0.5, 1.5], elementwise=True, p=1)]),
+                             A.MultiplicativeNoise([0.8, 1.2], elementwise=True, p=1)]),
                     A.HueSaturationValue(20, 0.2, 0.1),
                     ToTensorV2()
                 ],
@@ -199,7 +202,7 @@ class PlateAlbumentation(object):
                     A.RandomBrightnessContrast(),  # 183ms
                     A.OneOf([A.GaussianBlur(blur_limit=(3, 21), p=0.5),  # 105ms
                              A.GaussNoise(0.1, p=0.5),  # 1266ms
-                             A.MultiplicativeNoise([0.5, 1.5], elementwise=True, p=0.5)]),  # 460ms
+                             A.MultiplicativeNoise([0.8, 1.2], elementwise=True, p=0.5)]),  # 460ms
                     A.HueSaturationValue(20, 0.2, 0.1),  # 494ms
                     A.RandomShadow(shadow_roi=(0, 0, 1, 1)),  # 186ms
                     ToTensorV2()  # 34ms
@@ -213,7 +216,7 @@ class PlateAlbumentation(object):
                     A.RandomBrightnessContrast(),  # 183ms
                     A.OneOf([A.GaussianBlur(blur_limit=(3, 21), p=0.5),  # 105ms
                              A.GaussNoise(0.1, p=0.5),  # 1266ms
-                             A.MultiplicativeNoise([0.5, 1.5], elementwise=True, p=0.5)]),  # 460ms
+                             A.MultiplicativeNoise([0.8, 1.2], elementwise=True, p=0.5)]),  # 460ms
                     A.HueSaturationValue(20, 0.2, 0.1),  # 494ms
                     A.RandomShadow(shadow_roi=(0, 0, 1, 1)),  # 186ms
                     ToTensorV2()  # 34ms
