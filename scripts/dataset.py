@@ -13,6 +13,7 @@ from typing import Optional
 import utils
 from scipy.ndimage import gaussian_filter
 
+
 class PlateDataset(data.Dataset):
     def __init__(self, data_dir, transform=None):
         self.image_dir = os.path.join(data_dir, "images")
@@ -59,7 +60,7 @@ class SpotDataset(data.Dataset):
 
         image = utils.load_image_from_file(image_path, dtype="float")
         label = utils.load_image_from_file(label_path, dtype="float")
-        image, label = self.pad_to_correct_size(image, label)
+        image, label = utils.pad_to_correct_size(image, label)
         label *= 1000
         label = gaussian_filter(label, sigma=(1, 1), order=0)
 
@@ -70,19 +71,6 @@ class SpotDataset(data.Dataset):
             label = np.expand_dims(label, axis=0)
             label = torch.tensor(label, dtype=torch.float32)
             return image, label
-
-    def pad_to_correct_size(self, image, label, value=0):
-        """
-        Pad the images with the given value so that their shape is dividable by 8 on the X and Y axis. Does
-        it by adding the minimum number of values to each side.
-        """
-        pad_x = 8 - image.shape[1] % 8
-        pad_y = 8 - image.shape[0] % 8
-        image = np.pad(image, [(pad_y // 2, pad_y // 2 + pad_y % 2),
-                               (pad_x // 2, pad_x // 2 + pad_x % 2), (0, 0)], constant_values=value)
-        label = np.pad(label, [(pad_y // 2, pad_y // 2 + pad_y % 2),
-                               (pad_x // 2, pad_x // 2 + pad_x % 2)], constant_values=value)
-        return image, label
 
 
 class LabH5Dataset(data.Dataset):

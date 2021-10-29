@@ -187,3 +187,17 @@ def target_from_file(label_file, image_height, image_width):
     """
     boxes, labels = boxes_and_labels_from_file(label_file, image_height, image_width)
     return {"labels": labels, "boxes": boxes}
+
+
+def pad_to_correct_size(image, label, value=0):
+    """
+    Pad the images with the given value so that their shape is dividable by 8 on the X and Y axis. Does
+    it by adding the minimum number of values to each side.
+    """
+    pad_x = 8 - image.shape[1] % 8
+    pad_y = 8 - image.shape[0] % 8
+    image = np.pad(image, [(pad_y // 2, pad_y // 2 + pad_y % 2),
+                           (pad_x // 2, pad_x // 2 + pad_x % 2), (0, 0)], constant_values=value)
+    label = np.pad(label, [(pad_y // 2, pad_y // 2 + pad_y % 2),
+                           (pad_x // 2, pad_x // 2 + pad_x % 2)], constant_values=value)
+    return image, label
