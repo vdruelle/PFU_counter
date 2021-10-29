@@ -128,8 +128,8 @@ class CounterAlbumentation(object):
             transform = A.Compose(
                 [A.Compose([
                     A.OneOf([A.GaussianBlur(blur_limit=(3, 7), p=0.5),
-                             A.GaussNoise(0.05, p=0.5),
-                             A.MultiplicativeNoise([0.98, 1.02], elementwise=True, p=0.5)]),
+                             A.GaussNoise(0.002, p=0.5),
+                             A.MultiplicativeNoise([0.95, 1.05], elementwise=True, p=0.5)]),
                     A.ColorJitter()]),
                  A.Compose([
                      A.Flip(p=0.5),

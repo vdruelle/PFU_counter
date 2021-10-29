@@ -29,7 +29,7 @@ def train_phage_data():
     dataloader = {}
     for phase in ["train", "test"]:
         dataloader[phase] = torch.utils.data.DataLoader(
-            phage_colonies_dataset[phase], batch_size=1, num_workers=4, shuffle=(phase == "train"))
+            phage_colonies_dataset[phase], batch_size=1, num_workers=1, shuffle=(phase == "train"))
 
     network = UNet().to(device)
 
@@ -42,7 +42,7 @@ def train_phage_data():
     test_looper = Looper(network, device, loss, optimizer,
                          dataloader["test"], len(phage_colonies_dataset["test"]), writer, validation=True)
 
-    for epoch in range(70):
+    for epoch in range(60):
         print(f"Epoch: {epoch}")
         train_looper.run()
         with torch.no_grad():
