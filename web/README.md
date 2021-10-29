@@ -1,51 +1,51 @@
-# web app
+# PFU counter web app
 
 ## Development
 
 1. Install dependencies (once)
 
- - install, nvm: https://github.com/nvm-sh/nvm
+   - install, nvm: https://github.com/nvm-sh/nvm
 
- - install Node.js version mentioned in `.nvmrc` file:
+   - install Node.js version mentioned in `.nvmrc` file:
 
-    ```bash
-    cd web/
-    nvm use
+      ```bash
+      cd web/
+      nvm use
+      ```
+
+   - verify the installation: `node --version` should match the version in `.nvmrc` file.
+
+   - install yarn and nodemon globally
+
+     ```bash
+     npm install -g yarn@1.22.17 nodemon@2.0.13
+     ```
+
+   - verify the installation: `yarn` and `nodemon` should be in `$PATH` and `yarn --version` and `nodemon --version` should match the versions above.
+
+
+2. Prepare env variables
+
+    ```
+    cp .env.example .env
+    ```
+    
+    Adjust `.env` if needed.
+
+
+3. Install required Node.js modules (listed in `package.json`)
+
+    ```
+    yarn install
     ```
 
- - verify the installation: `node --version` should match the version in `.nvmrc` file.
+4. Run development server with hot reloading:
 
- - install yarn and nodemon globally
+    ```bash
+    yarn dev
+    ```
 
-   ```bash
-   npm install -g yarn@1.22.17 nodemon@2.0.13
-   ```
-
- - verify the installation: `yarn` and `nodemon` should be in `$PATH` and `yarn --version` and `nodemon --version` should match the versions above.
-
-
-3. Prepare env variables
-
-```
-cp .env.example .env
-```
-
-Adjust `.env` if needed.
-
-
-4. Install required Node.js modules (listed in `package.json`)
-
-```
-yarn install
-```
-
-5. Run development server with hot reloading:
-
-```bash
-yarn dev
-```
-
-6. Wait until the initial build is done and open `http://localhost:3000` in the browser.
+5. Wait until the initial build is done and open `http://localhost:3000` in the browser.
 
 
 ## Production build
