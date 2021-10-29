@@ -117,8 +117,6 @@ interface CopyPluginOptions {
   options?: Options
 }
 
-const getWithCopy = (options: CopyPluginOptions) => (nextConfig: NextConfig) => {
+export const getWithCopy = (options: CopyPluginOptions) => (nextConfig: NextConfig) => {
   return addWebpackPlugin(nextConfig, new CopyPlugin(options))
 }
-
-export default getWithCopy

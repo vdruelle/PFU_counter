@@ -19,10 +19,11 @@ import getWithFriendlyConsole from './withFriendlyConsole'
 import getWithTypeChecking from './withTypeChecking'
 import withFriendlyChunkNames from './withFriendlyChunkNames'
 import withIgnore from './withIgnore'
-import withRaw from './withRaw'
 import withResolve from './withResolve'
 import withWebpackWatchPoll from './withWebpackWatchPoll'
 import { getWithRobotsTxt } from './withRobotsTxt'
+import { getWithCopy } from './withCopy'
+import withUrl from './withUrl'
 
 // Ignore recoil warning messages in stdout
 // https://github.com/facebookexperimental/Recoil/issues/733
@@ -153,11 +154,23 @@ const withImages = getNextOptimizedImages({
   responsive: false,
 })
 
+const withCopy = getWithCopy({
+  patterns: [
+    // Copy 'onnxruntime-web' wasm files to the output dir
+    {
+      context: path.join(moduleRoot, 'node_modules/onnxruntime-web/dist'),
+      from: `*.wasm`,
+      to: 'static/chunks/[name][ext]',
+      toType: 'template',
+    },
+  ],
+})
+
 const config = withPlugins(
   [
     [withImages],
     [withIgnore],
-    [withRaw],
+    [withUrl],
     [withFriendlyConsole],
     [withMDX],
     [withTypeChecking],
@@ -166,6 +179,7 @@ const config = withPlugins(
     [withFriendlyChunkNames],
     [withResolve],
     [withRobotsTxt],
+    [withCopy],
   ].filter(Boolean),
   nextConfig,
 )

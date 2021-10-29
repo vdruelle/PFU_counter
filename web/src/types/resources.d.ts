@@ -1,3 +1,8 @@
+declare module '*.onnx' {
+  const url: string
+  export default url
+}
+
 declare module '*.json' {
   const content: object
   export default content
