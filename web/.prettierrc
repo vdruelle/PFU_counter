@@ -1,0 +1,17 @@
+{
+  "arrowParens": "always",
+  "printWidth": 120,
+  "proseWrap": "always",
+  "quoteProps": "consistent",
+  "semi": false,
+  "singleQuote": true,
+  "trailingComma": "all",
+  "overrides": [
+    {
+      "files": ["*.md", "*.mdx"],
+      "options": {
+        "proseWrap": "never"
+      }
+    }
+  ]
+}

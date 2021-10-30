@@ -1,0 +1,36 @@
+{
+  "quiet": true,
+  "legacyWatch": false,
+  "delay": 0.1,
+  "watch": [
+    "../../.env",
+    ".browserslistrc",
+    ".editorconfig",
+    ".eslintignore",
+    ".eslintrc.js",
+    ".prettierignore",
+    ".prettierrc",
+    "babel.config.js",
+    "config",
+    "next.config.js",
+    "package.json",
+    "postcss.config.js",
+    "src",
+    "static",
+    "tools/monkeyPatch.ts",
+    "tsconfig.json",
+    "webpack.config.js",
+    "yarn.lock"
+  ],
+  "ext": "js,jsx,ts,tsx,json,flow,css,scss,sass,styl,html,ejs,d,txt,yml,sh",
+  "ignore": [
+    "**/*.test.*s",
+    "**/*.test.*sx",
+    "**/__tests__",
+    ".build",
+    "config/jest",
+    "node_modules",
+    "src/.generated"
+  ],
+  "exec": "run-s -c clear prod:clean prod:start || cd ."
+}
