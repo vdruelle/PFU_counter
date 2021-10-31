@@ -38,8 +38,8 @@
     "tsc:watch": "yarn tsc --watch",
     "format": "prettier --check \"**/*.{js,jsx,ts,tsx,json,html,css,less,scss,yml,yaml}\"",
     "format:fix": "yarn format --write",
-    "run:node": "cross-env NODE_ENV=development BABEL_ENV=development babel-node --extensions '.ts'",
-    "run:node:prod": "cross-env NODE_ENV=production BABEL_ENV=production babel-node --extensions '.ts'",
+    "run:node": "cross-env NODE_ENV=development BABEL_ENV=development babel-node --extensions '.ts,.js'",
+    "run:node:prod": "cross-env NODE_ENV=production BABEL_ENV=production babel-node --extensions '.ts,.js'",
     "monkey-patch": "yarn run:node tools/monkeyPatch.ts"
   },
   "dependencies": {
