@@ -45,15 +45,15 @@ def plate_extraction(image, detection):
     """
     detector_images = {}
     sub_images = []
-    for ii in range(detector_output_cleaned["labels"].shape[0]):
-        box = torch.round(detector_output_cleaned["boxes"][ii]).type(torch.int32)
+    for ii in range(detection["labels"].shape[0]):
+        box = torch.round(detection["boxes"][ii]).type(torch.int32)
         sub_images += [image[:, box[1]:box[3], box[0]:box[2]]]
 
-    detector_images["plate_name"] = sub_images[torch.where(detector_output_cleaned["labels"] == 1)[0]]
-    detector_images["phage_names"] = sub_images[torch.where(detector_output_cleaned["labels"] == 2)[0]]
+    detector_images["plate_name"] = sub_images[torch.where(detection["labels"] == 1)[0]]
+    detector_images["phage_names"] = sub_images[torch.where(detection["labels"] == 2)[0]]
     detector_images["phage_spots"] = []
 
-    for ii in torch.where(detector_output_cleaned["labels"] == 3)[0].tolist():
+    for ii in torch.where(detection["labels"] == 3)[0].tolist():
         detector_images["phage_spots"] += [sub_images[ii]]
 
     return detector_images
