@@ -26,7 +26,7 @@ class Looper():
             optimizer: already initialized optimizer link to network parameters
             data_loader: already initialized data loader
             dataset_size: no. of samples in dataset
-            plot: matplotlib axes
+            writer: tensorboard writing
             validation: flag to set train or eval mode
         """
         self.network = network
@@ -64,9 +64,6 @@ class Looper():
             result = self.network(image)
 
             # calculate loss and update running loss
-
-            # breakpoint()
-            # loss = (torch.sum(result)/1000 - torch.sum(label)/1000)**2 / torch.sum(label) / 10
             loss = self.loss(result, label)
 
             if self.validation:
@@ -81,7 +78,7 @@ class Looper():
             # loop over batch samples
             for true, predicted in zip(label, result):
                 # integrate a density map to get no. of objects
-                # note: density maps were normalized to 100 * no. of objects
+                # note: density maps were normalized to 1000 * no. of objects
                 #       to make network learn better
                 true_counts = torch.sum(true).item() / 1000
                 predicted_counts = torch.sum(predicted).item() / 1000

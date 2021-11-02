@@ -16,7 +16,7 @@ def train_phage_data():
     end of training.
     """
     device = torch.device('cuda:0' if torch.cuda.is_available() else print("Can't use GPU"))
-    writer = SummaryWriter('runs/Counter_new')
+    writer = SummaryWriter('runs/Counter_test')
 
     dataset_folder = {"train": "data/phage_spots/train/",
                       "test": "data/phage_spots/test/"}
@@ -33,7 +33,7 @@ def train_phage_data():
 
     network = UNet().to(device)
 
-    loss = torch.nn.MSELoss()
+    loss = torch.nn.MSELoss(reduce=True)
     optimizer = torch.optim.SGD(network.parameters(), lr=5e-3, momentum=0.9, weight_decay=1e-5)
     lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=30, gamma=0.1)
 
@@ -50,7 +50,7 @@ def train_phage_data():
         lr_scheduler.step()
 
     # Saving
-    torch.save(network.state_dict(), "model_saves/Counter_phages.pt")
+    # torch.save(network.state_dict(), "model_saves/Counter_phages.pt")
 
 
 def optimize_counter():
@@ -58,7 +58,7 @@ def optimize_counter():
     Loads the pretrained network and does a couple of epoch to test augmentation.
     """
     device = torch.device('cuda:0' if torch.cuda.is_available() else print("Can't use GPU"))
-    writer = SummaryWriter('runs/Counter_new_1')
+    writer = SummaryWriter('runs/Counter_sum')
 
     dataset_folder = {"train": "data/phage_spots/train/",
                       "test": "data/phage_spots/test/"}
@@ -93,7 +93,7 @@ def optimize_counter():
         lr_scheduler.step()
 
     # Saving
-    torch.save(network.state_dict(), "model_saves/Counter_phages_2.pt")
+    # torch.save(network.state_dict(), "model_saves/Counter_phages_2.pt")
 
 
 def test_network_prediction(network, dataloader, device):
@@ -141,7 +141,6 @@ def plot_network_predictions():
 
 
 if __name__ == '__main__':
-    # pretrain_original_data()
     # train_phage_data()
     optimize_counter()
     # plot_network_predictions()
