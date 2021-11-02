@@ -1,4 +1,5 @@
 """Function to crop the raw images into smaller parts"""
+import torch
 import pandas as pd
 from PIL import Image
 import numpy as np
@@ -126,9 +127,77 @@ def make_spot_images():
                 im.save(im_name)
 
 
+def crop_numpy_image(image, box):
+    """
+    Returns a crop of the image defined by the box. Box is in format [x1, y1, x2, y2].
+    """
+    box = np.round(box).astype(int)
+    return image[box[1]:box[3], box[0]:box[2], :]
+
+
+def fake_plate_analyzer_selection(image, boxes, labels):
+    """
+    Reproduces the selection of spots by the Plate_analyzer.
+    """
+    from Plate_analyzer import plate_extraction, map_spots, spot_selection
+
+    boxes, labels = torch.tensor(boxes), torch.tensor(labels)
+
+    detection = {"labels": labels, "boxes": boxes}
+    detector_images = plate_extraction(image, detection)
+
+    median_spot_size = np.median([[x.shape[1], x.shape[2]] for x in detector_images["phage_spots"]])
+    rows, columns = map_spots(detection, median_spot_size)
+    tmp = []
+    for ii, spot in enumerate(detector_images["phage_spots"]):
+        tmp += [{"image": spot, "row": rows[ii].item(), "column": columns[ii].item()}]
+    detector_images["phage_spots"] = tmp
+
+    # --- Selecting dilution spots to count ---
+    detector_images = spot_selection(detector_images, columns, rows)
+    return detector_images
+
+
+def spots_from_labels(data_folder):
+    """
+    Creates all the spots from the images and labels. One need to go through them and remove the ones where
+    you cannot count afterwards.
+    """
+    import os
+    import utils
+
+    if not os.path.exists("data/phage_spots"):
+        os.mkdir("data/phage_spots")
+    if not os.path.exists("data/phage_spots/images"):
+        os.mkdir("data/phage_spots/images")
+
+    image_list = os.listdir(data_folder + "images/")
+
+    ii = 0
+    for image_path in image_list:
+        image = utils.load_image_from_file(data_folder + "images/" + image_path, dtype="int")
+        labels_path = image_path.split(".")[0] + ".txt"
+        boxes, labels = utils.boxes_and_labels_from_file(
+            data_folder + "labels/" + labels_path, image.shape[0], image.shape[1])
+
+        spot_images = fake_plate_analyzer_selection(image, boxes, labels)["phage_spots"]
+        spot_images = [spot for spot in spot_images if spot["to_count"]]
+        breakpoint()
+
+        boxes = np.array(boxes)
+        labels = np.array(labels)
+        boxes = boxes[labels == 3]  # Selecting spots only
+
+        for box in boxes:
+            spot_image = crop_numpy_image(image, box)
+            spot_image = Image.fromarray(spot_image)
+            spot_image.save("data/phage_spots/images/spot_" + str(ii) + ".jpg")
+            ii += 1
+
+
 if __name__ == '__main__':
     # make_column_images()
-    make_spot_images()
+    # make_spot_images()
 
     # image = Image.open("data/phage_columns/20200204_115031_0.jpg")
     # tmp = np.array(image)
@@ -151,3 +220,5 @@ if __name__ == '__main__':
     #
     # print("max shape")
     # print(m, mm)
+
+    spots_from_labels("data/plates_labeled/spot_labeling/")
