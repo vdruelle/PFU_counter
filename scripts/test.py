@@ -43,8 +43,8 @@ def gaussian_filter_density(gt):
 
 
 if __name__ == '__main__':
-    image_path = "data/phage_spots/test/images/20200204_115031_3_0.png"
-    label_path = "data/phage_spots/test/labels/20200204_115031_3_0_labels.png"
+    image_path = "data/phage_spots_old/test/images/20200204_115031_3_0.png"
+    label_path = "data/phage_spots_old/test/labels/20200204_115031_3_0_labels.png"
 
     label = utils.load_image_from_file(label_path)
     image = utils.load_image_from_file(image_path)
@@ -54,3 +54,4 @@ if __name__ == '__main__':
     plt.imshow(density)
     plt.figure()
     plt.imshow(image)
+    plt.show()

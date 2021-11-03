@@ -10,6 +10,7 @@ import h5py
 import numpy as np
 from PIL import Image
 from scipy.ndimage import gaussian_filter
+from scipy.spatial import KDTree
 import pandas as pd
 import random
 
@@ -340,11 +341,66 @@ def add_plate_data(folder_path, destination_folder):
         image.save(destination_folder + image_name)
 
 
+def kdtree_gaussian(gt):
+    """
+    Gaussian smoothing to predict density target for colony counter. This ones sizes the gaussians based on
+    the distance to the closest colonies.
+    """
+    density = np.zeros(gt.shape, dtype=np.float32)
+    gt_count = np.count_nonzero(gt)
+
+    if gt_count == 0:
+        return density
+
+    pts = np.array(list(zip(np.nonzero(gt)[1], np.nonzero(gt)[0])))
+    leafsize = 2048
+    # build kdtree
+    tree = KDTree(pts.copy(), leafsize=leafsize)
+    # query kdtree
+    distances, locations = tree.query(pts, k=4)
+
+    for i, pt in enumerate(pts):
+        pt2d = np.zeros(gt.shape, dtype=np.float32)
+        pt2d[pt[1], pt[0]] = 1.
+        if gt_count > 1:
+            sigma = (distances[i][1] + distances[i][2] + distances[i][3]) * 0.1
+        else:
+            sigma = np.average(np.array(gt.shape)) / 2. / 2.  # case: 1 point
+        density += gaussian_filter(pt2d, sigma, mode='constant')
+    return density
+
+
+def smooth_spots_label(raw_folder, output_folder, mode="kdtree"):
+    """
+    Takes the raw images label, and smooth them using a gaussian kernel to get the target density map. Saves
+    the density map as numpy arrays (because they are floats).
+    """
+
+    assert mode in ["kdtree", "standard"], "Mode must be 'kdtree' or 'standard'"
+
+    import utils
+    if not os.path.exists(output_folder):
+        os.mkdir(output_folder)
+
+    raw_list = os.listdir(raw_folder)
+    raw_list.remove("labels.csv")
+    for raw in raw_list:
+        raw_label = utils.load_image_from_file(raw_folder + raw, dtype="int")
+        if mode == "kdtree":
+            density = kdtree_gaussian(raw_label)
+        elif mode == "standard":
+            density = gaussian_filter(raw_label/255, sigma=(1, 1), order=0)
+        np.save(output_folder + raw[:-4] + ".npy", density)
+
+
 if __name__ == '__main__':
     # generate_cell_data()
-    # make_spots_label("data/phage_spots_labels/labels.csv", "data/phage_spots_labels/")
+    # make_spots_label("data/phage_spots_minimal/dot_labeling/labels/labels.csv",
+    #                  "data/phage_spots_minimal/dot_labeling/labels/")
     # generate_phage_data()
     # generate_plate_data()
-    inspect_plate_data("data/plates_labeled/spot_labeling/")
+    # inspect_plate_data("data/plates_labeled/spot_labeling/")
     # create_plate_data()
     # add_plate_data("data/plates_raw/lab_raw_11-10-2021/", "data/plates_raw/lab_raw_11-10-2021_oriented/")
+    smooth_spots_label("data/phage_spots_minimal/dot_labeling/labels/",
+                       "data/phage_spots_minimal/dot_labeling/density_standard/", mode="standard")
