@@ -127,12 +127,12 @@ def make_spot_images():
                 im.save(im_name)
 
 
-def crop_numpy_image(image, box):
+def crop_torch_image(image, box):
     """
     Returns a crop of the image defined by the box. Box is in format [x1, y1, x2, y2].
     """
     box = np.round(box).astype(int)
-    return image[box[1]:box[3], box[0]:box[2], :]
+    return image[:, box[1]:box[3], box[0]:box[2]]
 
 
 def fake_plate_analyzer_selection(image, boxes, labels):
@@ -145,7 +145,6 @@ def fake_plate_analyzer_selection(image, boxes, labels):
 
     detection = {"labels": labels, "boxes": boxes}
     detector_images = plate_extraction(image, detection)
-
     median_spot_size = np.median([[x.shape[1], x.shape[2]] for x in detector_images["phage_spots"]])
     rows, columns = map_spots(detection, median_spot_size)
     tmp = []
@@ -160,8 +159,8 @@ def fake_plate_analyzer_selection(image, boxes, labels):
 
 def spots_from_labels(data_folder):
     """
-    Creates all the spots from the images and labels. One need to go through them and remove the ones where
-    you cannot count afterwards.
+    Creates all the spots image from the plate labels based on the plate_analyzer selection rule for which
+    one should be used to count.
     """
     import os
     import utils
@@ -173,26 +172,20 @@ def spots_from_labels(data_folder):
 
     image_list = os.listdir(data_folder + "images/")
 
-    ii = 0
     for image_path in image_list:
         image = utils.load_image_from_file(data_folder + "images/" + image_path, dtype="int")
+        image = torch.tensor(np.transpose(image, (2, 0, 1)), dtype=torch.float32)
         labels_path = image_path.split(".")[0] + ".txt"
         boxes, labels = utils.boxes_and_labels_from_file(
-            data_folder + "labels/" + labels_path, image.shape[0], image.shape[1])
+            data_folder + "labels/" + labels_path, image.shape[1], image.shape[2])
 
         spot_images = fake_plate_analyzer_selection(image, boxes, labels)["phage_spots"]
         spot_images = [spot for spot in spot_images if spot["to_count"]]
-        breakpoint()
 
-        boxes = np.array(boxes)
-        labels = np.array(labels)
-        boxes = boxes[labels == 3]  # Selecting spots only
-
-        for box in boxes:
-            spot_image = crop_numpy_image(image, box)
-            spot_image = Image.fromarray(spot_image)
-            spot_image.save("data/phage_spots/images/spot_" + str(ii) + ".jpg")
-            ii += 1
+        for ii in range(len(spot_images)):
+            im = np.array(spot_images[ii]["image"]).astype(np.uint8)
+            im = np.transpose(im, (1, 2, 0))
+            Image.fromarray(im).save(f"data/phage_spots/images/{image_path[:-4]}_{ii}.jpg")
 
 
 if __name__ == '__main__':
