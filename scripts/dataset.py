@@ -11,7 +11,6 @@ from albumentations.pytorch import ToTensorV2
 from PIL import Image
 from typing import Optional
 import utils
-from scipy.ndimage import gaussian_filter
 
 
 class PlateDataset(data.Dataset):
@@ -44,25 +43,26 @@ class PlateDataset(data.Dataset):
 
 
 class SpotDataset(data.Dataset):
-    def __init__(self, data_dir, transform=None):
-        self.image_dir = os.path.join(data_dir, "images")
-        self.label_dir = os.path.join(data_dir, "labels")
+    def __init__(self, image_dir, density_dir, scaling=100, transform=None):
+        self.image_dir = image_dir
+        self.density_dir = density_dir
+        self.scaling = scaling
         self.images = list(sorted(os.listdir(self.image_dir)))
-        self.labels = list(sorted(os.listdir(self.label_dir)))
+        self.labels = list(sorted(os.listdir(self.density_dir)))
         self.transform = transform
+        self.batch_shape = self.padded_shape()
 
     def __len__(self):
         return len(self.images)
 
     def __getitem__(self, idx):
         image_path = os.path.join(self.image_dir, self.images[idx])
-        label_path = os.path.join(self.label_dir, self.labels[idx])
+        label_path = os.path.join(self.density_dir, self.labels[idx])
 
         image = utils.load_image_from_file(image_path, dtype="float")
-        label = utils.load_image_from_file(label_path, dtype="float")
-        label *= 1000
-        label = gaussian_filter(label, sigma=(1, 1), order=0)
-        image, label = utils.pad_to_correct_size(image, label)
+        label = np.load(label_path)
+        label *= self.scaling
+        image, label = utils.pad_to_shape(image, label, self.batch_shape)
 
         if self.transform is not None:
             return self.transform(image, label)
@@ -71,6 +71,22 @@ class SpotDataset(data.Dataset):
             label = np.expand_dims(label, axis=0)
             label = torch.tensor(label, dtype=torch.float32)
             return image, label
+
+    def max_shape(self):
+        "Finds the shape of the biggest image in the dataset and returns it."
+        xmax, ymax = 0, 0
+        for image_path in self.images:
+            image = utils.load_image_from_file(self.image_dir + image_path, dtype="int")
+            ymax = max(ymax, image.shape[0])
+            xmax = max(xmax, image.shape[1])
+        return ymax, xmax
+
+    def padded_shape(self):
+        "Finds the shape that every image should have once padded"
+        max_shape = self.max_shape()
+        newx = max_shape[1] + (8 - max_shape[1] % 8)
+        newy = max_shape[0] + (8 - max_shape[0] % 8)
+        return newy, newx
 
 
 class LabH5Dataset(data.Dataset):
@@ -155,13 +171,13 @@ class H5Dataset(data.Dataset):
 if __name__ == '__main__':
     from transforms import PlateAlbumentation, CounterAlbumentation
     import matplotlib.pyplot as plt
-    dataset_folder = "data/phage_spots/"
-    dataset = SpotDataset(dataset_folder, transform=CounterAlbumentation(3))
-    image, label = dataset[0]
+    dataset_folder = "data/phage_spots_minimal/dot_labeling/test/"
+    dataset = SpotDataset(dataset_folder + "images/", dataset_folder + "density_kdtree", transform=None)
+    for ii in range(len(dataset)):
+        image, label = dataset[ii]
 
-    plt.figure()
-    plt.imshow(image.cpu().numpy().transpose(1, 2, 0))
-    plt.figure()
-    plt.imshow(label.cpu().numpy()[0])
-
-    plt.show()
+        plt.figure()
+        plt.imshow(image.cpu().numpy().transpose(1, 2, 0))
+        plt.figure()
+        plt.imshow(label.cpu().numpy()[0])
+        plt.show()

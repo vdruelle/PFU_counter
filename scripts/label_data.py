@@ -115,7 +115,6 @@ def predict_full_dataset(model_save_path, image_folder, output_label_folder, num
         image_path = os.path.join(image_folder, image_name)
         image = utils.load_image_from_file(image_path)
         image = torch.tensor(np.transpose(image, (2, 0, 1)), dtype=torch.float32)
-        image.to(device)
 
         # Predictions
         image = image.to(device)

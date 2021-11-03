@@ -203,6 +203,19 @@ def pad_to_correct_size(image, label, value=0):
     return image, label
 
 
+def pad_to_shape(image, label, shape, value=0):
+    """
+    Pad the image and target so that they end up in the specified shape.
+    """
+    pad_x = shape[1] - image.shape[1]
+    pad_y = shape[0] - image.shape[0]
+    image = np.pad(image, [(pad_y // 2, pad_y // 2 + pad_y % 2),
+                           (pad_x // 2, pad_x // 2 + pad_x % 2), (0, 0)], constant_values=value)
+    label = np.pad(label, [(pad_y // 2, pad_y // 2 + pad_y % 2),
+                           (pad_x // 2, pad_x // 2 + pad_x % 2)], constant_values=value)
+    return image, label
+
+
 def pad_image_to_correct_size(image, value=0):
     """
     Same as above but just for the image.

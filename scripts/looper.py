@@ -16,7 +16,9 @@ class Looper():
                  data_loader: torch.utils.data.DataLoader,
                  dataset_size: int,
                  writer: SummaryWriter,
-                 validation: bool = False):
+                 scaling: float,
+                 validation: bool = False
+                 ):
         """
         Initialize Looper.
         Args:
@@ -37,6 +39,7 @@ class Looper():
         self.size = dataset_size
         self.validation = validation
         self.writer = writer
+        self.scaling = scaling
         self.epoch = 0
 
     def run(self):
@@ -80,8 +83,8 @@ class Looper():
                 # integrate a density map to get no. of objects
                 # note: density maps were normalized to 1000 * no. of objects
                 #       to make network learn better
-                true_counts = torch.sum(true).item() / 1000
-                predicted_counts = torch.sum(predicted).item() / 1000
+                true_counts = torch.sum(true).item() / self.scaling
+                predicted_counts = torch.sum(predicted).item() / self.scaling
 
                 # update current epoch results
                 self.true_values.append(true_counts)

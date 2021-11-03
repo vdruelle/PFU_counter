@@ -126,7 +126,6 @@ def make_spots_label(path_csv, save_folder):
     """
     Creates the image labels for the phage spots from the csv label file and save them in the save_folder.
     """
-    import pandas as pd
     df = pd.read_csv(path_csv, sep=",", names=["label", "x", "y", "image", "w", "h"])
     os.makedirs(save_folder, exist_ok=True)
 
@@ -383,24 +382,51 @@ def smooth_spots_label(raw_folder, output_folder, mode="kdtree"):
         os.mkdir(output_folder)
 
     raw_list = os.listdir(raw_folder)
-    raw_list.remove("labels.csv")
+    if "labels.csv" in raw_list:
+        raw_list.remove("labels.csv")
     for raw in raw_list:
         raw_label = utils.load_image_from_file(raw_folder + raw, dtype="int")
+        if len(raw_label.shape) == 3:  # specific to the cell dataset, where the labels are RGB
+            raw_label = np.sum(raw_label, axis=2)
         if mode == "kdtree":
             density = kdtree_gaussian(raw_label)
         elif mode == "standard":
-            density = gaussian_filter(raw_label/255, sigma=(1, 1), order=0)
+            density = gaussian_filter(raw_label / 255, sigma=(1, 1), order=0)
+        density = density.astype(np.float32)
         np.save(output_folder + raw[:-4] + ".npy", density)
+
+
+def inspect_spot_data(image_folder, density_folder):
+    """
+    Plots all the images and their density.
+    """
+    import utils
+    import matplotlib.pyplot as plt
+
+    images = list(sorted(os.listdir(image_folder)))
+    densities = list(sorted(os.listdir(density_folder)))
+
+    for im, de in zip(images, densities):
+        image = utils.load_image_from_file(image_folder + im)
+        density = np.load(density_folder + de)
+
+        fig, axs = plt.subplots(1, 2, sharex=True, sharey=True)
+        axs[0].imshow(image, interpolation=None)
+        axs[1].imshow(density, interpolation=None)
+        axs[1].set_xlabel(f"{round(np.sum(density))}")
+        plt.show()
 
 
 if __name__ == '__main__':
     # generate_cell_data()
-    # make_spots_label("data/phage_spots_minimal/dot_labeling/labels/labels.csv",
-    #                  "data/phage_spots_minimal/dot_labeling/labels/")
     # generate_phage_data()
     # generate_plate_data()
     # inspect_plate_data("data/plates_labeled/spot_labeling/")
     # create_plate_data()
     # add_plate_data("data/plates_raw/lab_raw_11-10-2021/", "data/plates_raw/lab_raw_11-10-2021_oriented/")
-    smooth_spots_label("data/phage_spots_minimal/dot_labeling/labels/",
-                       "data/phage_spots_minimal/dot_labeling/density_standard/", mode="standard")
+    # make_spots_label("data/phage_spots_minimal/dot_labeling/test/labels/labels.csv",
+    #                  "data/phage_spots_minimal/dot_labeling/test/labels/")
+    # smooth_spots_label("data/cells/train/labels/",
+    #                    "data/cells/train/density_standard/", mode="standard")
+    inspect_spot_data("data/cells/test/images/",
+                      "data/cells/test/density_kdtree/")
