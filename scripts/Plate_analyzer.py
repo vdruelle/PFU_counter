@@ -167,6 +167,23 @@ def count_spots(detector_images, counter_save, scaling=1000):
     return detector_images
 
 
+def make_analysis_output(detector_images):
+    """
+    Computes the analysis output from the detector_images dictionary.
+    """
+    analysis_output = {"plate_name": np.transpose(detector_images["plate_name"].cpu().numpy(), (1, 2, 0)),
+                       "phage_names": np.transpose(detector_images["phage_names"].cpu().numpy(), (1, 2, 0))}
+
+    spots = detector_images["phage_spots"]
+    columns = [im["column"] for im in spots if im["to_count"]]
+    columns = np.unique(columns)
+
+    for col in columns:
+        analysis_output[col] = [s["concentration"]
+                                for s in spots if (s["column"] == col and s["to_count"])]
+    return make_analysis_output
+
+
 if __name__ == '__main__':
     plate_detector_save = "model_saves/Plate_detection.pt"
     phage_counter_save = "model_saves/Counter_phages.pt"
@@ -204,10 +221,6 @@ if __name__ == '__main__':
     # if show_intermediate:
     #     utils.plot_counter(tmp[0].cpu().numpy().transpose(1, 2, 0), output[0, 0].cpu().numpy())
 
-    analysis_output = {"plate_name": detector_images["plate_name"],
-                       "phage_names": detector_images["phage_names"]}
-    for col in np.unique(columns.cpu().numpy()):
-        analysis_output[col] = [s["concentration"]
-                                for s in detector_images["phage_spots"] if (s["column"] == col and s["to_count"])]
+    analysis_output = make_analysis_output(detector_images)
 
     plt.show()
