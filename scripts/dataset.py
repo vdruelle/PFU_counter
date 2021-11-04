@@ -50,7 +50,7 @@ class SpotDataset(data.Dataset):
         self.images = list(sorted(os.listdir(self.image_dir)))
         self.labels = list(sorted(os.listdir(self.density_dir)))
         self.transform = transform
-        self.batch_shape = self.padded_shape()
+        self.batch_shape = max(self.padded_shape())
 
     def __len__(self):
         return len(self.images)
@@ -62,7 +62,7 @@ class SpotDataset(data.Dataset):
         image = utils.load_image_from_file(image_path, dtype="float")
         label = np.load(label_path)
         label *= self.scaling
-        image, label = utils.pad_to_shape(image, label, self.batch_shape)
+        image, label = utils.pad_to_shape(image, label, (self.batch_shape, self.batch_shape))
 
         if self.transform is not None:
             return self.transform(image, label)

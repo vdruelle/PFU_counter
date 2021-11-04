@@ -127,12 +127,19 @@ def spot_selection(detector_images, columns, rows):
     return detector_images
 
 
+def count_to_concentration(counts, row):
+    """
+    Computes concentration according to number of counts and dilution row of the spot.
+    """
+    return counts * 10**(-row)
+
+
 if __name__ == '__main__':
     plate_detector_save = "model_saves/Plate_detection.pt"
     phage_counter_save = "model_saves/Counter_phages.pt"
     image_path = "data/plates_labeled/spot_labeling/images/20200204_115135.jpg"
     # image_path = "data/plates_labeled/spot_labeling/images/20200204_115534.jpg"
-    show_intermediate = False
+    show_intermediate = True
 
     # --- Plate detection part ---
     image, detector_output = plate_detection(image_path, plate_detector_save)
@@ -156,12 +163,6 @@ if __name__ == '__main__':
     # --- Selecting dilution spots to count ---
     detector_images = spot_selection(detector_images, columns, rows)
 
-    if show_intermediate:
-        for spot in detector_images["phage_spots"]:
-            if spot["to_count"]:
-                plt.figure()
-                plt.imshow(spot["image"].cpu().numpy().transpose(1, 2, 0))
-
     # --- Feeding to the colony counter network ---
 
     device = torch.device('cuda:0' if torch.cuda.is_available() else print("GPU not available"))
@@ -177,10 +178,21 @@ if __name__ == '__main__':
                 tmp = torch.tensor(tmp.transpose(2, 0, 1)).to(device)
                 tmp = torch.unsqueeze(tmp, 0)  # adding one dimension
                 output = model(tmp)
-                plt.figure()
-                plt.imshow(image_dict["image"].cpu().numpy().transpose(1, 2, 0))
-                plt.figure()
-                plt.xlabel(f"Counts: {round(np.sum(output[0, 0, :, :].cpu().numpy())/1000, 2)}")
-                plt.imshow(output[0, 0, :, :].cpu().numpy())
+
+                nb_predicted = torch.sum(output).item() / 1000
+                image_dict["counts"] = nb_predicted
+
+                if show_intermediate:
+                    utils.plot_counter(tmp[0].cpu().numpy().transpose(1, 2, 0), output[0, 0].cpu().numpy())
 
     plt.show()
+
+    for image_dict in detector_images["phage_spots"]:
+        if image_dict["to_count"]:
+            image_dict["concentration"] = count_to_concentration(image_dict["counts"], image_dict["row"])
+
+    analysis_output = {"plate_name": detector_images["plate_name"],
+                       "phage_names": detector_images["phage_names"]}
+    for col in np.unique(columns.cpu().numpy()):
+        analysis_output[col] = [s["concentration"]
+                                for s in detector_images["phage_spots"] if (s["column"] == col and s["to_count"])]

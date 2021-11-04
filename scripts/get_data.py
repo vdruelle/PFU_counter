@@ -429,7 +429,7 @@ if __name__ == '__main__':
     # add_plate_data("data/plates_raw/lab_raw_11-10-2021/", "data/plates_raw/lab_raw_11-10-2021_oriented/")
     # make_spots_label("data/phage_spots_minimal/dot_labeling/test/labels/labels.csv",
     #                  "data/phage_spots_minimal/dot_labeling/test/labels/")
-    smooth_spots_label("data/phage_spots_minimal/dot_labeling/test/labels/",
-                       "data/phage_spots_minimal/dot_labeling/test/density_test/", mode="kdtree")
-    inspect_spot_data("data/phage_spots_minimal/dot_labeling/test/images/",
-                      "data/phage_spots_minimal/dot_labeling/test/density_test/")
+    # smooth_spots_label("data/phage_spots_old/train/labels/",
+    #                    "data/phage_spots_old/train/density_kdtree/", mode="kdtree")
+    inspect_spot_data("data/phage_spots_old/train/images/",
+                      "data/phage_spots_old/train/density_kdtree/")

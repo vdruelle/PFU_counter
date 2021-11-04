@@ -85,16 +85,26 @@ def batch_cleanup_boxes(boxes, scores, labels, threshold=0.25):
     return idxs
 
 
-def plot_counter(image, prediction, label):
+def plot_counter_density(image, prediction, density, vmax=10, scaling=1000):
     """
-    Plots a phage colony image and its prediction from the network side by side.
+    Plots a phage colony image, density and its prediction from the network side by side.
     """
-    from matplotlib.colors import LogNorm
     fig, axs = plt.subplots(1, 3, sharex=True, sharey=True)
     axs[0].imshow(image, interpolation=None)
-    axs[1].imshow(prediction, cmap="hot", vmin=0, vmax=2, interpolation=None)
-    axs[1].set_xlabel(f"Real: {round(np.sum(label)/1000)}   Estimated: {round(np.sum(prediction)/1000)}")
-    axs[2].imshow(label, cmap="hot", vmin=0, vmax=2, interpolation=None)
+    axs[1].imshow(prediction, cmap="hot", vmin=0, vmax=vmax, interpolation=None)
+    axs[1].set_xlabel(
+        f"Real: {round(np.sum(density)/scaling)} Estimated: {round(np.sum(prediction)/scaling)}")
+    axs[2].imshow(density, cmap="hot", vmin=0, vmax=vmax, interpolation=None)
+
+
+def plot_counter(image, prediction, vmax=10, scaling=1000):
+    """
+    Plots a phage colony image and its prediction from the network side by side. Numpy arrays as input.
+    """
+    fig, axs = plt.subplots(1, 2, sharex=True, sharey=True)
+    axs[0].imshow(image, interpolation=None)
+    axs[1].imshow(prediction, cmap="hot", vmin=0, vmax=vmax, interpolation=None)
+    axs[1].set_xlabel(f"Estimated: {round(np.sum(prediction)/scaling)}")
 
 
 def plot_counter_albu(image, label, raw_image, raw_label):
@@ -207,13 +217,24 @@ def pad_to_shape(image, label, shape, value=0):
     """
     Pad the image and target so that they end up in the specified shape.
     """
+    image = pad_single_to_shape(image, shape, value)
+    label = pad_single_to_shape(label, shape, value)
+    return image, label
+
+
+def pad_single_to_shape(image, shape, value=0):
+    """
+    Pads a single image to specified shape.
+    """
     pad_x = shape[1] - image.shape[1]
     pad_y = shape[0] - image.shape[0]
-    image = np.pad(image, [(pad_y // 2, pad_y // 2 + pad_y % 2),
-                           (pad_x // 2, pad_x // 2 + pad_x % 2), (0, 0)], constant_values=value)
-    label = np.pad(label, [(pad_y // 2, pad_y // 2 + pad_y % 2),
-                           (pad_x // 2, pad_x // 2 + pad_x % 2)], constant_values=value)
-    return image, label
+    if len(image.shape) == 2:
+        image = np.pad(image, [(pad_y // 2, pad_y // 2 + pad_y % 2),
+                               (pad_x // 2, pad_x // 2 + pad_x % 2)], constant_values=value)
+    else:
+        image = np.pad(image, [(pad_y // 2, pad_y // 2 + pad_y % 2),
+                               (pad_x // 2, pad_x // 2 + pad_x % 2), (0, 0)], constant_values=value)
+    return image
 
 
 def pad_image_to_correct_size(image, value=0):
@@ -222,6 +243,10 @@ def pad_image_to_correct_size(image, value=0):
     """
     pad_x = 8 - image.shape[1] % 8
     pad_y = 8 - image.shape[0] % 8
-    image = np.pad(image, [(pad_y // 2, pad_y // 2 + pad_y % 2),
-                           (pad_x // 2, pad_x // 2 + pad_x % 2), (0, 0)], constant_values=value)
+    if len(image.shape) == 2:
+        image = np.pad(image, [(pad_y // 2, pad_y // 2 + pad_y % 2),
+                               (pad_x // 2, pad_x // 2 + pad_x % 2)], constant_values=value)
+    else:
+        image = np.pad(image, [(pad_y // 2, pad_y // 2 + pad_y % 2),
+                               (pad_x // 2, pad_x // 2 + pad_x % 2), (0, 0)], constant_values=value)
     return image
