@@ -45,16 +45,20 @@ def plate_extraction(image, detection):
     """
     detector_images = {}
     sub_images = []
+    boxes = []
     for ii in range(detection["labels"].shape[0]):
         box = torch.round(detection["boxes"][ii]).type(torch.int32)
         sub_images += [image[:, box[1]:box[3], box[0]:box[2]]]
+        boxes += [box.cpu().tolist()]
 
     detector_images["plate_name"] = sub_images[torch.where(detection["labels"] == 1)[0]]
     detector_images["phage_names"] = sub_images[torch.where(detection["labels"] == 2)[0]]
     detector_images["phage_spots"] = []
+    detector_images["spot_boxes"] = []
 
     for ii in torch.where(detection["labels"] == 3)[0].tolist():
         detector_images["phage_spots"] += [sub_images[ii]]
+        detector_images["spot_boxes"] += [boxes[ii]]
 
     return detector_images
 
@@ -134,12 +138,41 @@ def count_to_concentration(counts, row):
     return counts * 10**(-row)
 
 
+def count_spots(detector_images, counter_save, scaling=1000):
+    """
+    Uses the colony counting network to predict the count in each spot to count. Returns the
+    detector_images dict with additional keys for the counts in the spot images.
+    """
+    device = torch.device('cuda:0' if torch.cuda.is_available() else print("GPU not available"))
+    model = UNet()
+    model.to(device)
+    model.load_state_dict(torch.load(counter_save))
+    model.eval()
+    with torch.no_grad():
+        for image_dict in detector_images["phage_spots"]:
+            if image_dict["to_count"]:
+                tmp = image_dict["image"].cpu().numpy().transpose(1, 2, 0)
+                tmp = utils.pad_image_to_correct_size(tmp)
+                tmp = torch.tensor(tmp.transpose(2, 0, 1)).to(device)
+                tmp = torch.unsqueeze(tmp, 0)  # adding one dimension
+                output = model(tmp)
+
+                nb_predicted = torch.sum(output).item() / scaling
+                image_dict["counts"] = nb_predicted
+
+    for image_dict in detector_images["phage_spots"]:
+        if image_dict["to_count"]:
+            image_dict["concentration"] = count_to_concentration(image_dict["counts"], image_dict["row"])
+
+    return detector_images
+
+
 if __name__ == '__main__':
     plate_detector_save = "model_saves/Plate_detection.pt"
     phage_counter_save = "model_saves/Counter_phages.pt"
     image_path = "data/plates_labeled/spot_labeling/images/20200204_115135.jpg"
     # image_path = "data/plates_labeled/spot_labeling/images/20200204_115534.jpg"
-    show_intermediate = True
+    show_intermediate = False
 
     # --- Plate detection part ---
     image, detector_output = plate_detection(image_path, plate_detector_save)
@@ -157,42 +190,24 @@ if __name__ == '__main__':
     rows, columns = map_spots(detector_output_cleaned, median_spot_size)
     tmp = []
     for ii, spot in enumerate(detector_images["phage_spots"]):
-        tmp += [{"image": spot, "row": rows[ii].item(), "column": columns[ii].item()}]
+        tmp += [{"image": spot, "row": rows[ii].item(), "column": columns[ii].item(),
+                 "box": detector_images["spot_boxes"][ii]}]
     detector_images["phage_spots"] = tmp
+    del detector_images["spot_boxes"]
 
     # --- Selecting dilution spots to count ---
     detector_images = spot_selection(detector_images, columns, rows)
 
     # --- Feeding to the colony counter network ---
+    detector_images = count_spots(detector_images, phage_counter_save)
 
-    device = torch.device('cuda:0' if torch.cuda.is_available() else print("GPU not available"))
-    model = UNet()
-    model.to(device)
-    model.load_state_dict(torch.load("model_saves/Counter_phages.pt"))
-    model.eval()
-    with torch.no_grad():
-        for image_dict in detector_images["phage_spots"]:
-            if image_dict["to_count"]:
-                tmp = image_dict["image"].cpu().numpy().transpose(1, 2, 0)
-                tmp = utils.pad_image_to_correct_size(tmp)
-                tmp = torch.tensor(tmp.transpose(2, 0, 1)).to(device)
-                tmp = torch.unsqueeze(tmp, 0)  # adding one dimension
-                output = model(tmp)
-
-                nb_predicted = torch.sum(output).item() / 1000
-                image_dict["counts"] = nb_predicted
-
-                if show_intermediate:
-                    utils.plot_counter(tmp[0].cpu().numpy().transpose(1, 2, 0), output[0, 0].cpu().numpy())
-
-    plt.show()
-
-    for image_dict in detector_images["phage_spots"]:
-        if image_dict["to_count"]:
-            image_dict["concentration"] = count_to_concentration(image_dict["counts"], image_dict["row"])
+    # if show_intermediate:
+    #     utils.plot_counter(tmp[0].cpu().numpy().transpose(1, 2, 0), output[0, 0].cpu().numpy())
 
     analysis_output = {"plate_name": detector_images["plate_name"],
                        "phage_names": detector_images["phage_names"]}
     for col in np.unique(columns.cpu().numpy()):
         analysis_output[col] = [s["concentration"]
                                 for s in detector_images["phage_spots"] if (s["column"] == col and s["to_count"])]
+
+    plt.show()
