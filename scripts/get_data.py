@@ -357,13 +357,16 @@ def kdtree_gaussian(gt):
     tree = KDTree(pts.copy(), leafsize=leafsize)
     # query kdtree
     distances, locations = tree.query(pts, k=4)
+    d_median = np.median(distances[:, 1:])  # removing first column because its distance to same point, i.e. 0
 
     for i, pt in enumerate(pts):
         pt2d = np.zeros(gt.shape, dtype=np.float32)
         pt2d[pt[1], pt[0]] = 1.
         if gt_count > 1:
-            sigma = (distances[i][1] + distances[i][2] + distances[i][3]) * 0.1
+            d_neighbors = distances[i][1] + distances[i][2] + distances[i][3]
+            sigma = min(2*d_median, d_neighbors) * 0.1
         else:
+            print("There is only one point in the label")
             sigma = np.average(np.array(gt.shape)) / 2. / 2.  # case: 1 point
         density += gaussian_filter(pt2d, sigma, mode='constant')
     return density
@@ -426,7 +429,7 @@ if __name__ == '__main__':
     # add_plate_data("data/plates_raw/lab_raw_11-10-2021/", "data/plates_raw/lab_raw_11-10-2021_oriented/")
     # make_spots_label("data/phage_spots_minimal/dot_labeling/test/labels/labels.csv",
     #                  "data/phage_spots_minimal/dot_labeling/test/labels/")
-    # smooth_spots_label("data/cells/train/labels/",
-    #                    "data/cells/train/density_standard/", mode="standard")
-    inspect_spot_data("data/cells/test/images/",
-                      "data/cells/test/density_kdtree/")
+    smooth_spots_label("data/phage_spots_minimal/dot_labeling/test/labels/",
+                       "data/phage_spots_minimal/dot_labeling/test/density_test/", mode="kdtree")
+    inspect_spot_data("data/phage_spots_minimal/dot_labeling/test/images/",
+                      "data/phage_spots_minimal/dot_labeling/test/density_test/")
