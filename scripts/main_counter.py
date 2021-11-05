@@ -17,7 +17,7 @@ def train_phage_data(data_folder, scaling=1000):
     end of training.
     """
     device = torch.device('cuda:0' if torch.cuda.is_available() else print("Can't use GPU"))
-    writer = SummaryWriter('runs/Counter_L1')
+    writer = SummaryWriter('runs/Counter_nonegative_minimal')
 
     dataset_folder = {"train": data_folder + "train/",
                       "test": data_folder + "test/"}
@@ -39,7 +39,7 @@ def train_phage_data(data_folder, scaling=1000):
 
     loss = torch.nn.MSELoss()
     optimizer = torch.optim.SGD(network.parameters(), lr=5e-3, momentum=0.9, weight_decay=1e-5)
-    lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=40, gamma=0.1)
+    lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=60, gamma=0.1)
 
     train_looper = Looper(network, device, loss, optimizer,
                           dataloader["train"], len(dataset["train"]), writer, scaling=scaling)
@@ -54,7 +54,7 @@ def train_phage_data(data_folder, scaling=1000):
         lr_scheduler.step()
 
     # Saving
-    # torch.save(network.state_dict(), "model_saves/Counter_old.pt")
+    torch.save(network.state_dict(), "model_saves/Counter_nonegative_minimal.pt")
 
 
 def optimize_counter():
@@ -121,6 +121,7 @@ def plot_network_predictions(model_save, image_folder, density_folder=""):
 
         with torch.no_grad():
             output = network(torch.unsqueeze(image, 0))
+            output[output < 0] = 0
 
         image = np.transpose(image.cpu().numpy(), (1, 2, 0))
         output = output.cpu().numpy()
@@ -161,9 +162,9 @@ def train_minimal(image_folder, density_folder):
 
 
 if __name__ == '__main__':
-    train_phage_data("data/phage_spots_old/")
+    # train_phage_data("data/phage_spots_minimal/dot_labeling/")
     # optimize_counter()
-    # plot_network_predictions("model_saves/Counter_old.pt",
-    #                          "data/phage_spots_old/test/images/", "data/phage_spots_old/test/density_kdtree/")
+    plot_network_predictions("model_saves/Counter_nonegative_minimal.pt",
+                             "data/phage_spots_old/test/images/", "data/phage_spots_old/test/density_kdtree/")
     # train_minimal("data/phage_spots_minimal/dot_labeling/images",
     # "data/phage_spots_minimal/dot_labeling/density_kdtree")
