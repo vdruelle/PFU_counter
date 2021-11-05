@@ -51,14 +51,14 @@ def plate_extraction(image, detection):
         sub_images += [image[:, box[1]:box[3], box[0]:box[2]]]
         boxes += [box.cpu().tolist()]
 
-    detector_images["plate_name"] = sub_images[torch.where(detection["labels"] == 1)[0]]
-    detector_images["phage_names"] = sub_images[torch.where(detection["labels"] == 2)[0]]
+    idx = torch.where(detection["labels"] == 1)[0]
+    detector_images["plate_name"] = {"image": sub_images[idx], "bbox": boxes[idx]}
+    idx = torch.where(detection["labels"] == 2)[0]
+    detector_images["phage_names"] = {"image": sub_images[idx], "bbox": boxes[idx]}
     detector_images["phage_spots"] = []
-    detector_images["spot_boxes"] = []
 
     for ii in torch.where(detection["labels"] == 3)[0].tolist():
-        detector_images["phage_spots"] += [sub_images[ii]]
-        detector_images["spot_boxes"] += [boxes[ii]]
+        detector_images["phage_spots"] += [{"image": sub_images[ii], "bbox": boxes[ii]}]
 
     return detector_images
 
@@ -135,7 +135,7 @@ def count_to_concentration(counts, row):
     """
     Computes concentration according to number of counts and dilution row of the spot.
     """
-    return counts * 10**(-row)
+    return counts * 10**row
 
 
 def count_spots(detector_images, counter_save, scaling=1000):
@@ -156,6 +156,7 @@ def count_spots(detector_images, counter_save, scaling=1000):
                 tmp = torch.tensor(tmp.transpose(2, 0, 1)).to(device)
                 tmp = torch.unsqueeze(tmp, 0)  # adding one dimension
                 output = model(tmp)
+                output[output < 0] = 0
 
                 nb_predicted = torch.sum(output).item() / scaling
                 image_dict["counts"] = nb_predicted
@@ -181,12 +182,12 @@ def make_analysis_output(detector_images):
     for col in columns:
         analysis_output[col] = [s["concentration"]
                                 for s in spots if (s["column"] == col and s["to_count"])]
-    return make_analysis_output
+    return analysis_output
 
 
 if __name__ == '__main__':
     plate_detector_save = "model_saves/Plate_detection.pt"
-    phage_counter_save = "model_saves/Counter_phages.pt"
+    phage_counter_save = "model_saves/Counter_nonegative.pt"
     image_path = "data/plates_labeled/spot_labeling/images/20200204_115135.jpg"
     # image_path = "data/plates_labeled/spot_labeling/images/20200204_115534.jpg"
     show_intermediate = False
@@ -203,24 +204,24 @@ if __name__ == '__main__':
     detector_images = plate_extraction(image, detector_output_cleaned)
 
     # --- Sorting dilution spots into rows and columns  ---
-    median_spot_size = np.median([[x.shape[1], x.shape[2]] for x in detector_images["phage_spots"]])
+    median_spot_size = np.median([[x["image"].shape[1], x["image"].shape[2]]
+                                  for x in detector_images["phage_spots"]])
     rows, columns = map_spots(detector_output_cleaned, median_spot_size)
     tmp = []
     for ii, spot in enumerate(detector_images["phage_spots"]):
-        tmp += [{"image": spot, "row": rows[ii].item(), "column": columns[ii].item(),
-                 "box": detector_images["spot_boxes"][ii]}]
-    detector_images["phage_spots"] = tmp
-    del detector_images["spot_boxes"]
+        spot["row"] = rows[ii].item()
+        spot["column"] = columns[ii].item()
 
     # --- Selecting dilution spots to count ---
     detector_images = spot_selection(detector_images, columns, rows)
 
     # --- Feeding to the colony counter network ---
     detector_images = count_spots(detector_images, phage_counter_save)
+    breakpoint()
 
-    # if show_intermediate:
-    #     utils.plot_counter(tmp[0].cpu().numpy().transpose(1, 2, 0), output[0, 0].cpu().numpy())
+    # --- Image feedback ---
+    utils.plot_plate_analysis(image, detector_images)
 
+    # --- Plate_analyzer output ---
     analysis_output = make_analysis_output(detector_images)
-
     plt.show()

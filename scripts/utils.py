@@ -29,6 +29,16 @@ def plot_plate_detector(image, target):
                      color=colors[target["labels"][ii].item()])
 
 
+def plot_plate_analysis(original_image, detector_images):
+    """
+    Plots the results of the plate analysis including the bounding box and concentrations for spots selected.
+    """
+    colors = ["C0", "C1", "C2", "C3", "C4"]
+    plt.figure(figsize=(14, 10))
+    image = original_image.cpu().numpy().transpose((1, 2, 0))
+    plt.imshow(image)
+
+
 def clean_plate_detector_output(output, iou_threshold=0.15, score_threshold=0.3):
     """
     Takes the output of the PlateDetector network and cleans it to remove boxes that overlap too much or have
