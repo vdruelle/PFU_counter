@@ -9,7 +9,7 @@ def plot_plate_detector(image, target):
     """
     Takes in torch tensor (on gpu) and plots the predictions of the network.
     """
-    colors = ["C0", "C1", "C2", "C3", "C4"]
+    colors = ["C0", "C2", "C1", "C3", "C4"]
     plt.figure(figsize=(14, 10))
     image = image.cpu().numpy().transpose((1, 2, 0))
     target = {k: v.cpu() for k, v in target.items()}
@@ -33,10 +33,26 @@ def plot_plate_analysis(original_image, detector_images):
     """
     Plots the results of the plate analysis including the bounding box and concentrations for spots selected.
     """
+    def patch(box, color_idx, alpha=0.5):
+        plt.gca().add_patch(Rectangle((box[0], box[1]), box[2] - box[0], box[3] - box[1],
+                                      facecolor="none",
+                                      edgecolor=colors[color_idx],
+                                      alpha=alpha))
+
     colors = ["C0", "C1", "C2", "C3", "C4"]
     plt.figure(figsize=(14, 10))
     image = original_image.cpu().numpy().transpose((1, 2, 0))
     plt.imshow(image)
+
+    patch(detector_images["plate_name"]["bbox"], 0)
+    patch(detector_images["phage_names"]["bbox"], 1)
+    for spot in detector_images["phage_spots"]:
+        box = spot["bbox"]
+        if spot["to_count"]:
+            patch(box, 3)
+            plt.text(box[0], box[1], round(spot["counts"], 1), color=colors[3])
+        else:
+            patch(box, 2)
 
 
 def clean_plate_detector_output(output, iou_threshold=0.15, score_threshold=0.3):

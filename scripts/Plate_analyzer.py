@@ -172,8 +172,10 @@ def make_analysis_output(detector_images):
     """
     Computes the analysis output from the detector_images dictionary.
     """
-    analysis_output = {"plate_name": np.transpose(detector_images["plate_name"].cpu().numpy(), (1, 2, 0)),
-                       "phage_names": np.transpose(detector_images["phage_names"].cpu().numpy(), (1, 2, 0))}
+    # Saving the plate and phage names as numpy arrays
+    plate_name = np.transpose(detector_images["plate_name"]["image"].cpu().numpy(), (1, 2, 0))
+    phage_names = np.transpose(detector_images["phage_names"]["image"].cpu().numpy(), (1, 2, 0))
+    analysis_output = {"plate_name": plate_name, "phage_names": phage_names}
 
     spots = detector_images["phage_spots"]
     columns = [im["column"] for im in spots if im["to_count"]]
@@ -188,17 +190,15 @@ def make_analysis_output(detector_images):
 if __name__ == '__main__':
     plate_detector_save = "model_saves/Plate_detection.pt"
     phage_counter_save = "model_saves/Counter_nonegative.pt"
-    image_path = "data/plates_labeled/spot_labeling/images/20200204_115135.jpg"
-    # image_path = "data/plates_labeled/spot_labeling/images/20200204_115534.jpg"
-    show_intermediate = False
+    # image_path = "data/plates_labeled/spot_labeling/images/20200204_115135.jpg"
+    image_path = "data/plates_labeled/spot_labeling/images/20200204_115534.jpg"
+    show = True
 
     # --- Plate detection part ---
     image, detector_output = plate_detection(image_path, plate_detector_save)
 
     # --- Filtering of the detection ---
     detector_output_cleaned = utils.clean_plate_detector_output(detector_output, 0.15, 0.3)
-    if show_intermediate:
-        utils.plot_plate_detector(image, detector_output_cleaned)
 
     # --- Extraction of images from box detection ---
     detector_images = plate_extraction(image, detector_output_cleaned)
@@ -217,10 +217,10 @@ if __name__ == '__main__':
 
     # --- Feeding to the colony counter network ---
     detector_images = count_spots(detector_images, phage_counter_save)
-    breakpoint()
 
     # --- Image feedback ---
-    utils.plot_plate_analysis(image, detector_images)
+    if show:
+        utils.plot_plate_analysis(image, detector_images)
 
     # --- Plate_analyzer output ---
     analysis_output = make_analysis_output(detector_images)
