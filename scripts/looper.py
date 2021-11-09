@@ -65,7 +65,7 @@ class Looper():
 
             # get model prediction (a density map)
             result = self.network(image)
-            result[result < 0] = 0 # To avoid negative filling of padded regions
+            result[result < 0] = 0  # To avoid negative filling of padded regions
 
             # calculate loss and update running loss
             loss = self.loss(result, label)

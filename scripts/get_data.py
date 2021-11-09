@@ -364,7 +364,7 @@ def kdtree_gaussian(gt):
         pt2d[pt[1], pt[0]] = 1.
         if gt_count > 1:
             d_neighbors = distances[i][1] + distances[i][2] + distances[i][3]
-            sigma = min(2*d_median, d_neighbors) * 0.1
+            sigma = min(2 * d_median, d_neighbors) * 0.1
         else:
             print("There is only one point in the label")
             sigma = np.average(np.array(gt.shape)) / 2. / 2.  # case: 1 point
@@ -420,6 +420,31 @@ def inspect_spot_data(image_folder, density_folder):
         plt.show()
 
 
+def make_box_density(image_folder, label_folder, output_folder, spread_scaling=20):
+    """
+    Creates the density from the box labels.
+    """
+    import utils
+    labels = list(sorted(os.listdir(label_folder)))
+    images = list(sorted(os.listdir(image_folder)))
+
+    # for image_name, label_name in zip(images, labels):
+    image_name = "20200204_115042_3.jpg"
+    label_name = "20200204_115042_3.txt"
+    label_path = label_folder + label_name
+    image = utils.load_image_from_file(image_folder + image_name)
+    density = np.zeros_like(image)[:, :, 0].astype(float)
+    df = pd.read_csv(label_path, sep=" ", names=["label", "cx", "cy", "w", "h"])
+    for ii in range(len(df)):
+        x = round(df["cx"][ii] * image.shape[1])
+        y = round(df["cy"][ii] * image.shape[0])
+        sigma = np.array([df["w"][ii], df["h"][ii]]) * spread_scaling
+        tmp = np.zeros_like(image)[:, :, 0].astype(float)
+        tmp[y, x] = 1
+        density += gaussian_filter(tmp, sigma=sigma, order=0)
+    return density
+
+
 if __name__ == '__main__':
     # generate_cell_data()
     # generate_phage_data()
@@ -429,7 +454,10 @@ if __name__ == '__main__':
     # add_plate_data("data/plates_raw/lab_raw_11-10-2021/", "data/plates_raw/lab_raw_11-10-2021_oriented/")
     # make_spots_label("data/phage_spots_minimal/dot_labeling/test/labels/labels.csv",
     #                  "data/phage_spots_minimal/dot_labeling/test/labels/")
-    # smooth_spots_label("data/phage_spots_old/train/labels/",
-    #                    "data/phage_spots_old/train/density_kdtree/", mode="kdtree")
-    inspect_spot_data("data/phage_spots_old/train/images/",
-                      "data/phage_spots_old/train/density_kdtree/")
+    # smooth_spots_label("data/phage_spots_subset/test/labels/",
+    #                    "data/phage_spots_subset/test/density_kdtree/", mode="kdtree")
+    # inspect_spot_data("data/phage_spots_subset/test/images/",
+    #                   "data/phage_spots_subset/test/density_kdtree/")
+    density = make_box_density("data/phage_spots_minimal/box_labeling/images/",
+                     "data/phage_spots_minimal/box_labeling/labels/",
+                     "data/phage_spots_minimal/box_labeling/density/")
