@@ -11,13 +11,13 @@ from looper import Looper
 from transforms import CounterAlbumentation
 
 
-def train_phage_data(data_folder, scaling=1000):
+def train_phage_data(data_folder, scaling=100):
     """
     Loads the pretrained network, trains it on the phae colonies data and save the state of the network at the
     end of training.
     """
     device = torch.device('cuda:0' if torch.cuda.is_available() else print("Can't use GPU"))
-    writer = SummaryWriter('runs/Counter_nonegative_minimal')
+    writer = SummaryWriter('runs/Counter_sigmo100')
 
     dataset_folder = {"train": data_folder + "train/",
                       "test": data_folder + "test/"}
@@ -27,7 +27,7 @@ def train_phage_data(data_folder, scaling=1000):
         dataset[phase] = SpotDataset(dataset_folder[phase] + "images/",
                                      dataset_folder[phase] + "density_kdtree/",
                                      scaling=scaling,
-                                     transform=CounterAlbumentation(3) if phase == "train" else None)
+                                     transform=CounterAlbumentation(2) if phase == "train" else None)
 
     dataloader = {}
     for phase in ["train", "test"]:
@@ -35,18 +35,18 @@ def train_phage_data(data_folder, scaling=1000):
             dataset[phase], batch_size=4, num_workers=4, shuffle=(phase == "train"))
 
     network = UNet().to(device)
-    network.load_state_dict(torch.load("model_saves/Counter_original.pt"))
+    # network.load_state_dict(torch.load("model_saves/Counter_original.pt"))
 
     loss = torch.nn.MSELoss()
     optimizer = torch.optim.SGD(network.parameters(), lr=5e-3, momentum=0.9, weight_decay=1e-5)
-    lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=60, gamma=0.1)
+    lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=40, gamma=0.1)
 
     train_looper = Looper(network, device, loss, optimizer,
                           dataloader["train"], len(dataset["train"]), writer, scaling=scaling)
     test_looper = Looper(network, device, loss, optimizer,
                          dataloader["test"], len(dataset["test"]), writer, scaling=scaling, validation=True)
 
-    for epoch in range(60):
+    for epoch in range(50):
         print(f"Epoch: {epoch}")
         train_looper.run()
         with torch.no_grad():
@@ -54,7 +54,7 @@ def train_phage_data(data_folder, scaling=1000):
         lr_scheduler.step()
 
     # Saving
-    torch.save(network.state_dict(), "model_saves/Counter_nonegative_minimal.pt")
+    torch.save(network.state_dict(), "model_saves/Counter_test.pt")
 
 
 def optimize_counter():
@@ -130,7 +130,7 @@ def plot_network_predictions(model_save, image_folder, density_folder=""):
         else:
             density = np.load(density_folder + image_name[:-4] + "_labels.npy")
             density = utils.pad_single_to_shape(density, dataset_shape)
-            utils.plot_counter_density(image, output[0, 0], density * 1000)
+            utils.plot_counter_density(image, output[0, 0], density, vmax=1, scaling=100)
             plt.show()
 
 
@@ -162,9 +162,9 @@ def train_minimal(image_folder, density_folder):
 
 
 if __name__ == '__main__':
-    # train_phage_data("data/phage_spots_minimal/dot_labeling/")
+    # train_phage_data("data/phage_spots_old/", scaling=100)
     # optimize_counter()
-    plot_network_predictions("model_saves/Counter_nonegative_minimal.pt",
+    plot_network_predictions("model_saves/Counter_test.pt",
                              "data/phage_spots_old/test/images/", "data/phage_spots_old/test/density_kdtree/")
     # train_minimal("data/phage_spots_minimal/dot_labeling/images",
     # "data/phage_spots_minimal/dot_labeling/density_kdtree")

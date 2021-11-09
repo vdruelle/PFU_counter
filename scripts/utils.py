@@ -119,8 +119,8 @@ def plot_counter_density(image, prediction, density, vmax=10, scaling=1000):
     axs[0].imshow(image, interpolation=None)
     axs[1].imshow(prediction, cmap="hot", vmin=0, vmax=vmax, interpolation=None)
     axs[1].set_xlabel(
-        f"Real: {round(np.sum(density)/scaling)} Estimated: {round(np.sum(prediction)/scaling)}")
-    axs[2].imshow(density, cmap="hot", vmin=0, vmax=vmax, interpolation=None)
+        f"Estimated: {round(np.sum(prediction)/scaling)}  Real: {round(np.sum(density))}")
+    axs[2].imshow(density*scaling, cmap="hot", vmin=0, vmax=vmax, interpolation=None)
 
 
 def plot_counter(image, prediction, vmax=10, scaling=1000):

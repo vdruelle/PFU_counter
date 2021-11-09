@@ -1,8 +1,10 @@
 """The implementation of U-Net model"""
+from torchvision import models
+import torch.nn.functional as F
+import torch.nn as nn
 from typing import Tuple
 
 import torch
-from torch import nn
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 import torchvision
 
@@ -105,8 +107,11 @@ class UNet(nn.Module):
 
         # density prediction
         self.block7 = conv_block(channels=up_filters, size=(3, 3), N=N)
-        self.density_pred = nn.Conv2d(in_channels=filters, out_channels=1,
-                                      kernel_size=(1, 1), bias=False, padding_mode="zeros")
+        # self.density_pred = nn.Conv2d(in_channels=filters, out_channels=1,
+        #                               kernel_size=(1, 1), bias=False, padding_mode="zeros")
+        self.density_pred = nn.Sequential(nn.Conv2d(in_channels=filters, out_channels=1,
+                                                    kernel_size=(1, 1), bias=False, padding_mode="zeros"),
+                                          nn.Tanh())
 
     def forward(self, input: torch.Tensor):
         """Forward pass."""
@@ -128,7 +133,7 @@ class UNet(nn.Module):
 
         # density prediction
         block7 = self.block7(block6)
-        return self.density_pred(block7)
+        return self.density_pred(block7).clone()
 
 
 def PlateDetector(num_classes=5, backbone="mobilenet", trainable_backbone_layers=0):
@@ -150,27 +155,5 @@ def PlateDetector(num_classes=5, backbone="mobilenet", trainable_backbone_layers
     return model
 
 
-# --- TESTS --- #
-
-
-def run_network(network: nn.Module, input_channels: int):
-    """Generate a random image, run through network, and check output size."""
-    # The dimension here is arbitrary as long as it is divisable by 2 3 times
-    sample = torch.ones((1, input_channels, 224, 224))
-    result = network(input_filters=input_channels)(sample)
-    assert result.shape == (1, 1, 224, 224)
-
-
-def test_UNet_color():
-    """Test U-Net on RGB images."""
-    run_network(UNet, 3)
-
-
-def test_UNet_grayscale():
-    """Test U-Net on grayscale images."""
-    run_network(UNet, 1)
-
-
 if __name__ == '__main__':
-    test_UNet_grayscale()
-    test_UNet_color()
+    pass
