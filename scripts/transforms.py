@@ -277,20 +277,9 @@ class CounterBoxAlbumentation(object):
                     A.HorizontalFlip(p=0.5),
                     A.RandomRotate90(p=0.5),
                     A.ColorJitter(),
-                    A.OneOf([A.GaussianBlur(blur_limit=(3, 21), p=0.5),
-                             A.GaussNoise(0.1, p=0.5)]),
-                    ToTensorV2()
-                ],
-                bbox_params=A.BboxParams(format='pascal_voc', label_fields=['class_labels']))
-        if self.mode == 4:
-            transform = A.Compose(
-                [
-                    A.HorizontalFlip(p=0.5),
-                    A.RandomRotate90(p=0.5),
-                    A.ColorJitter(),
-                    A.OneOf([A.GaussianBlur(blur_limit=(3, 7), p=0.5),
-                             A.GaussNoise(0.1, p=0.5),
-                             A.MultiplicativeNoise([0.8, 1.2], elementwise=True, p=0.5)]),
+                    A.OneOf([A.GaussianBlur(blur_limit=(3, 11), p=0.5),
+                             A.GaussNoise(0.005, p=0.5),
+                             A.MultiplicativeNoise([0.9, 1.1], elementwise=True, p=0.5)]),
                     ToTensorV2()
                 ],
                 bbox_params=A.BboxParams(format='pascal_voc', label_fields=['class_labels']))
@@ -300,30 +289,23 @@ class CounterBoxAlbumentation(object):
                                       "labels": torch.tensor(transformed["class_labels"], dtype=torch.int64)}
 
 
+def check_dataset_augmentation(image_path, label_path, augmentation, nb=10):
+    """
+    Plots images and augmented images.
+    """
+    image = utils.load_image_from_file(image_path)
+    boxes, labels = utils.boxes_and_labels_from_file(label_path, image.shape[0], image.shape[1])
+    target = {"boxes": boxes, "labels": labels}
+    for ii in range(nb):
+        augmented_image, augmented_target = augmentation.__call__(image, target)
+        utils.plot_spot_boxes(augmented_image, augmented_target)
+    plt.show()
+
+
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
-    # Phage_colonies_folder = "data/phage_plates/"
-    # dataset = LabH5Dataset(Phage_colonies_folder + "train.h5", None)
-    #
-    # # image, boxes, labels = dataset.images[0], dataset.boxes[0], dataset.labels[0]
-    # image, boxes, labels = dataset.__getitem__(0)
 
-    # true = label.sum()
-    #
-    # for ii in range(10):
-    #     transform = CounterAlbumentation()
-    #     transim, translab = transform(image, label)
-    #     transim = np.transpose(transim, (2, 1, 0))
-    #     translab = np.transpose(translab, (2, 1, 0))
-    #
-    #     fig, axs = plt.subplots(1, 2)
-    #     axs[0].imshow(transim)
-    #     axs[1].imshow(translab)
-    #     axs[1].set_xlabel(f"{translab.sum()} {true}")
-    # plt.show()
-
-    dataset = PlateDataset("data/plates_labeled/train/", PlateAlbumentation(mode=5))
-    for ii in range(5):
-        image, target = dataset.__getitem__(ii)
-        utils.plot_plate_detector(image, target)
-    plt.show()
+    image_path = "data/phage_spots_minimal/box_labeling/images/20200204_115042_3.jpg"
+    label_path = "data/phage_spots_minimal/box_labeling/labels/20200204_115042_3.txt"
+    augmentation = CounterBoxAlbumentation(3)
+    check_dataset_augmentation(image_path, label_path, augmentation)

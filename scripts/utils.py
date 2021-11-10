@@ -72,7 +72,7 @@ def plot_spot_boxes(image, prediction):
     Takes in torch tensor (on gpu) and plots the box prediction.
     """
     colors = ["C0", "C2", "C1", "C3", "C4"]
-    plt.figure(figsize=(14, 10))
+    plt.figure()
     image = image.cpu().numpy().transpose((1, 2, 0))
     prediction = {k: v.cpu() for k, v in prediction.items()}
     plt.imshow(image)
