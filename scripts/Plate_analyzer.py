@@ -27,7 +27,7 @@ def plate_detection(image_path, plate_detector_save):
     # Image loading
     image = utils.load_image_from_file(image_path)
     image = torch.tensor(np.transpose(image, (2, 0, 1)), dtype=torch.float32)
-    image.to(device)
+    image = image.to(device)
 
     # Predictions
     image = image.to(device)

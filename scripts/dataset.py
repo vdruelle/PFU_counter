@@ -13,6 +13,35 @@ from typing import Optional
 import utils
 
 
+class BoxDataset(data.Dataset):
+    def __init__(self, data_dir, transform=None):
+        self.image_dir = os.path.join(data_dir, "images")
+        self.label_dir = os.path.join(data_dir, "labels")
+        self.images = list(sorted(os.listdir(self.image_dir)))
+        self.labels = list(sorted(os.listdir(self.label_dir)))
+        self.transform = transform
+
+    def __len__(self):
+        return len(self.images)
+
+    def __getitem__(self, idx):
+        image_path = os.path.join(self.image_dir, self.images[idx])
+        label_path = os.path.join(self.label_dir, self.labels[idx])
+
+        image = utils.load_image_from_file(image_path, dtype="float")
+        image_width, image_height = image.shape[1], image.shape[0]
+        boxes, labels = utils.boxes_and_labels_from_file(label_path, image_height, image_width)
+
+        if self.transform is not None:
+            labels = np.array(labels, dtype=np.int64)
+            return self.transform(image, {"boxes": boxes, "labels": labels})
+        else:
+            boxes = torch.tensor(boxes, dtype=torch.float32)
+            labels = torch.tensor(labels, dtype=torch.int64)
+            target = {"boxes": boxes, "labels": labels}
+            return torch.tensor(np.transpose(image, (2, 0, 1)), dtype=torch.float32), target
+
+
 class PlateDataset(data.Dataset):
     def __init__(self, data_dir, transform=None):
         self.image_dir = os.path.join(data_dir, "images")

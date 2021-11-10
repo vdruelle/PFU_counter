@@ -67,20 +67,25 @@ def clean_plate_detector_output(output, iou_threshold=0.15, score_threshold=0.3)
     return output_cleaned
 
 
-def plot_plate_data(image, boxes, labels):
+def plot_spot_boxes(image, prediction):
     """
-    Takes inputs as numpy arrays and plot them.
+    Takes in torch tensor (on gpu) and plots the box prediction.
     """
-    colors = ["C0", "C1", "C2", "C3", "C4"]
+    colors = ["C0", "C2", "C1", "C3", "C4"]
     plt.figure(figsize=(14, 10))
+    image = image.cpu().numpy().transpose((1, 2, 0))
+    prediction = {k: v.cpu() for k, v in prediction.items()}
     plt.imshow(image)
 
-    for ii in range(len(boxes)):
-        box = boxes[ii]
+    for ii in range(len(prediction["boxes"])):
+        box = prediction["boxes"][ii]
         plt.gca().add_patch(Rectangle((box[0], box[1]), box[2] - box[0], box[3] - box[1],
                                       facecolor="none",
-                                      edgecolor=colors[labels[ii]],
+                                      edgecolor=colors[prediction["labels"][ii].item()],
                                       alpha=0.5))
+        if "scores" in prediction.keys():
+            plt.text(box[0], box[1], round(prediction["scores"][ii].item(), 2),
+                     color=colors[prediction["labels"][ii].item()])
 
 
 def plot_image_dot(image, label):
@@ -120,7 +125,7 @@ def plot_counter_density(image, prediction, density, vmax=10, scaling=1000):
     axs[1].imshow(prediction, cmap="hot", vmin=0, vmax=vmax, interpolation=None)
     axs[1].set_xlabel(
         f"Estimated: {round(np.sum(prediction)/scaling)}  Real: {round(np.sum(density))}")
-    axs[2].imshow(density*scaling, cmap="hot", vmin=0, vmax=vmax, interpolation=None)
+    axs[2].imshow(density * scaling, cmap="hot", vmin=0, vmax=vmax, interpolation=None)
 
 
 def plot_counter(image, prediction, vmax=10, scaling=1000):

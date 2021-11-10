@@ -240,6 +240,66 @@ class PlateAlbumentation(object):
                                       "labels": torch.tensor(transformed["class_labels"], dtype=torch.int64)}
 
 
+class CounterBoxAlbumentation(object):
+    def __init__(self, mode=0):
+        self.mode = mode
+
+    def __call__(self, image, target):
+        if self.mode == 0:
+            transform = A.Compose(
+                [
+                    A.Flip(p=0.5),
+                    A.RandomRotate90(p=0.5),
+                    ToTensorV2()
+                ],
+                bbox_params=A.BboxParams(format='pascal_voc', label_fields=['class_labels']))
+        if self.mode == 1:
+            transform = A.Compose(
+                [
+                    A.HorizontalFlip(p=0.5),
+                    A.RandomRotate90(p=0.5),
+                    A.RandomBrightnessContrast(),
+                    ToTensorV2()
+                ],
+                bbox_params=A.BboxParams(format='pascal_voc', label_fields=['class_labels']))
+        if self.mode == 2:
+            transform = A.Compose(
+                [
+                    A.HorizontalFlip(p=0.5),
+                    A.RandomRotate90(p=0.5),
+                    A.ColorJitter(),
+                    ToTensorV2()
+                ],
+                bbox_params=A.BboxParams(format='pascal_voc', label_fields=['class_labels']))
+        if self.mode == 3:
+            transform = A.Compose(
+                [
+                    A.HorizontalFlip(p=0.5),
+                    A.RandomRotate90(p=0.5),
+                    A.ColorJitter(),
+                    A.OneOf([A.GaussianBlur(blur_limit=(3, 21), p=0.5),
+                             A.GaussNoise(0.1, p=0.5)]),
+                    ToTensorV2()
+                ],
+                bbox_params=A.BboxParams(format='pascal_voc', label_fields=['class_labels']))
+        if self.mode == 4:
+            transform = A.Compose(
+                [
+                    A.HorizontalFlip(p=0.5),
+                    A.RandomRotate90(p=0.5),
+                    A.ColorJitter(),
+                    A.OneOf([A.GaussianBlur(blur_limit=(3, 7), p=0.5),
+                             A.GaussNoise(0.1, p=0.5),
+                             A.MultiplicativeNoise([0.8, 1.2], elementwise=True, p=0.5)]),
+                    ToTensorV2()
+                ],
+                bbox_params=A.BboxParams(format='pascal_voc', label_fields=['class_labels']))
+
+        transformed = transform(image=image, bboxes=target["boxes"], class_labels=target["labels"])
+        return transformed["image"], {"boxes": torch.tensor(transformed["bboxes"], dtype=torch.float32),
+                                      "labels": torch.tensor(transformed["class_labels"], dtype=torch.int64)}
+
+
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
     # Phage_colonies_folder = "data/phage_plates/"
