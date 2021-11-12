@@ -454,8 +454,8 @@ if __name__ == '__main__':
     #                  "data/phage_spots_minimal/dot_labeling/test/labels/")
     # smooth_spots_label("data/phage_spots_subset/test/labels/",
     #                    "data/phage_spots_subset/test/density_kdtree/", mode="kdtree")
-    inspect_spot_data("data/phage_spots_minimal/box_labeling/images/",
-                      "data/phage_spots_minimal/box_labeling/density/")
-    # density = make_box_density("data/phage_spots_minimal/box_labeling/images/",
-    #                            "data/phage_spots_minimal/box_labeling/labels/",
-    #                            "data/phage_spots_minimal/box_labeling/density/")
+    inspect_spot_data("data/phage_spots_minimal/box_labeling/train/images/",
+                      "data/phage_spots_minimal/box_labeling/train/density/")
+    # density = make_box_density("data/phage_spots_minimal/box_labeling/test/images/",
+    #                            "data/phage_spots_minimal/box_labeling/test/labels/",
+    #                            "data/phage_spots_minimal/box_labeling/test/density/")

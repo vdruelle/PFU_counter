@@ -22,18 +22,18 @@ def train_colony_detection():
     Train a FasterRCNN to do colony detection to determine concentration of a dilution spot.
     """
     device = torch.device('cuda:0' if torch.cuda.is_available() else print("GPU not available"))
-    writer = SummaryWriter('runs/Plate_detector')
+    writer = SummaryWriter('runs/Colony_detector_full')
 
-    dataset_folder = {"train": "data/phage_spots_minimal/box_labeling/train/",
-                      "test": "data/phage_spots_minimal/box_labeling/test/"}
+    dataset_folder = {"train": "data/phage_spots/subset/train/",
+                      "test": "data/phage_spots/subset/test/"}
     plate_dataset = {}
     for phase in ["train", "test"]:
-        plate_dataset[phase] = BoxDataset(dataset_folder[phase], CounterBoxAlbumentation(2))
+        plate_dataset[phase] = BoxDataset(dataset_folder[phase], CounterBoxAlbumentation(3))
 
     dataloader = {}
     for phase in ["train", "test"]:
         dataloader[phase] = torch.utils.data.DataLoader(
-            plate_dataset[phase], batch_size=4, num_workers=4, shuffle=(phase == "train"),
+            plate_dataset[phase], batch_size=6, num_workers=6, shuffle=(phase == "train"),
             collate_fn=collate_fn)
 
     # The model
@@ -42,9 +42,9 @@ def train_colony_detection():
 
     # Optimizer
     optimizer = torch.optim.SGD(model.parameters(), lr=5e-3, momentum=0.9, weight_decay=5e-4)
-    lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=30, gamma=0.1)
+    lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=40, gamma=0.1)
 
-    num_epochs = 60
+    num_epochs = 80
     n_iter = 0
     for epoch in range(num_epochs):
         print(f"--- Epoch {epoch} ---")
@@ -88,7 +88,7 @@ def train_colony_detection():
 
         lr_scheduler.step()
 
-    torch.save(model.state_dict(), "model_saves/Dot_counting.pt")
+    torch.save(model.state_dict(), "model_saves/Dot_counting_full.pt")
     print("That's it!")
 
 
@@ -164,5 +164,5 @@ def predict_full_dataset(model_save_path, image_folder, output_label_folder, sho
 
 if __name__ == '__main__':
     # train_colony_detection()
-    predict_full_dataset("model_saves/Dot_counting.pt", "data/phage_spots/subset/",
-                         "data/phage_spots/subset_labels/", show=False)
+    # predict_full_dataset("model_saves/Dot_counting_full.pt", "data/phage_spots/subset/test/images/",
+    #                      "data/phage_spots/subset/test/labels/", show=True)

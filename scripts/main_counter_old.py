@@ -20,7 +20,7 @@ def train_phage_data(data_folder, scaling=100):
     end of training.
     """
     device = torch.device('cuda:0' if torch.cuda.is_available() else print("Can't use GPU"))
-    writer = SummaryWriter('runs/Counter_box')
+    writer = SummaryWriter('runs/Counter_box2')
 
     dataset_folder = {"train": data_folder + "train/",
                       "test": data_folder + "test/"}
@@ -30,7 +30,7 @@ def train_phage_data(data_folder, scaling=100):
         dataset[phase] = SpotDataset(dataset_folder[phase] + "images/",
                                      dataset_folder[phase] + "density/",
                                      scaling=scaling,
-                                     transform=CounterAlbumentation(3) if phase == "train" else None)
+                                     transform=CounterAlbumentation(2) if phase == "train" else None)
 
     dataloader = {}
     for phase in ["train", "test"]:
@@ -49,7 +49,7 @@ def train_phage_data(data_folder, scaling=100):
     test_looper = Looper(network, device, loss, optimizer,
                          dataloader["test"], len(dataset["test"]), writer, scaling=scaling, validation=True)
 
-    for epoch in range(60):
+    for epoch in range(80):
         print(f"Epoch: {epoch}")
         train_looper.run()
         with torch.no_grad():
@@ -73,7 +73,7 @@ def optimize_counter():
     phage_colonies_dataset = {}
     for phase in ["train", "test"]:
         phage_colonies_dataset[phase] = SpotDataset(dataset_folder[phase],
-                                                    CounterAlbumentation(3) if phase == "train" else None)
+                                                    CounterAlbumentation(2) if phase == "train" else None)
 
     dataloader = {}
     for phase in ["train", "test"]:
@@ -129,9 +129,11 @@ def plot_network_predictions(model_save, image_folder, density_folder=""):
         image = np.transpose(image.cpu().numpy(), (1, 2, 0))
         output = output.cpu().numpy()
         if density_folder == "":
-            utils.plot_counter(image, output[0, 0], vmax=10)
+            utils.plot_counter(image, output[0, 0], vmax=1, scaling=50)
+            plt.show()
         else:
             density = np.load(density_folder + image_name[:-4] + "_labels.npy")
+            # density = np.load(density_folder + image_name[:-4] + ".npy")
             density = utils.pad_single_to_shape(density, dataset_shape)
             utils.plot_counter_density(image, output[0, 0], density, vmax=1, scaling=50)
             plt.show()
@@ -268,9 +270,9 @@ def predict_plate(model_path, image_path):
 if __name__ == '__main__':
     # train_phage_data("data/phage_spots_minimal/box_labeling/", scaling=50)
     # optimize_counter()
-    # plot_network_predictions("model_saves/Counter_box.pt",
-    #                          "data/phage_spots_old/test/images/", "data/phage_spots_old/test/density_kdtree/")
+    plot_network_predictions("model_saves/Counter_box.pt",
+                             "data/phage_spots_minimal/dot_labeling/train/images/")
     # train_minimal("data/phage_spots_minimal/dot_labeling/images",
     # "data/phage_spots_minimal/dot_labeling/density_kdtree")
     # train_plate_detection()
-    predict_plate("model_saves/Dot_counting.pt", "data/phage_spots/all_images/20211007_110618_2.jpg")
+    # predict_plate("model_saves/Dot_counting.pt", "data/phage_spots/all_images/20211007_110618_2.jpg")
