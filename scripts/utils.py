@@ -10,9 +10,10 @@ def plot_plate_detector(image, target):
     Takes in torch tensor (on gpu) and plots the predictions of the network.
     """
     colors = ["C0", "C2", "C1", "C3", "C4"]
-    plt.figure(figsize=(14, 10))
     image = image.cpu().numpy().transpose((1, 2, 0))
     target = {k: v.cpu() for k, v in target.items()}
+
+    plt.figure(figsize=(14, 10))
     plt.imshow(image)
 
     if "scores" in target.keys():

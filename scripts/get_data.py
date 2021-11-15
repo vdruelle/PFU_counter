@@ -1,125 +1,80 @@
-"""A tool to download and preprocess data, and generate HDF5 file."""
+"""A script with helper function to manage the data used by the PFU_counter."""
 import os
-import shutil
-import zipfile
-from glob import glob
-import wget
-from typing import List, Tuple
-
-import h5py
 import numpy as np
 from PIL import Image
 from scipy.ndimage import gaussian_filter
 from scipy.spatial import KDTree
 import pandas as pd
 import random
+import torch
 
 
-def create_hdf5(dataset_name: str,
-                train_size: int,
-                valid_size: int,
-                img_size: Tuple[int, int],
-                in_channels: int = 3):
+def inspect_plate_data(image_label_folder="data/plates_labeled/", start_idx=0):
     """
-    Create empty training and validation HDF5 files with placeholders
-    for images and labels (density maps).
-    Note:
-    Datasets are saved in [dataset_name]/train.h5 and [dataset_name]/valid.h5.
-    Existing files will be overwritten.
-    Args:
-        dataset_name: used to create a folder for train.h5 and valid.h5
-        train_size: no. of training samples
-        valid_size: no. of validation samples
-        img_size: (width, height) of a single image / density map
-        in_channels: no. of channels of an input image
-    Returns:
-        A tuple of pointers to training and validation HDF5 files.
+    Shows the plate images and respective labels in the folder. Use the start_idx argument to specify at which
+    image of the list you wish to start.
     """
-    # create output folder if it does not exist
-    os.makedirs(dataset_name, exist_ok=True)
+    import utils
+    import matplotlib.pyplot as plt
+    img_size = (4608, 3456)
 
-    # create HDF5 files: [dataset_name]/(train | valid).h5
-    train_h5 = h5py.File(os.path.join(dataset_name, 'train.h5'), 'w')
-    valid_h5 = h5py.File(os.path.join(dataset_name, 'valid.h5'), 'w')
+    image_list = list(sorted(os.listdir(image_label_folder + "images/")))
+    labels_list = list(sorted(os.listdir(image_label_folder + "labels/")))
+    for image_name, label_name in zip(image_list[start_idx:], labels_list[start_idx:]):
+        print(f"Image : {image_name}")
+        image = utils.load_image_from_file(image_label_folder + "images/" + image_name, dtype="int")
 
-    # add two HDF5 datasets (images and labels) for each HDF5 file
-    for h5, size in ((train_h5, train_size), (valid_h5, valid_size)):
-        h5.create_dataset('images', (size, *img_size, in_channels))
-        h5.create_dataset('labels', (size, *img_size, 1))
+        boxes, labels = utils.boxes_and_labels_from_file(
+            image_label_folder + "labels/" + label_name, *img_size)
 
-    return train_h5, valid_h5
+        target = {"boxes": torch.tensor(boxes), "labels": torch.tensor(labels)}
+        utils.plot_plate_detector(torch.tensor(np.transpose(image, (2, 0, 1))), target)
+        plt.show()
 
 
-def get_and_unzip(url: str, location: str = "."):
-    """Extract a ZIP archive from given URL.
-    Args:
-        url: url of a ZIP file
-        location: target location to extract archive in
+def convert_heic_to_jpg(image_folder):
     """
-    dataset = wget.download(url)
-    dataset = zipfile.ZipFile(dataset)
-    dataset.extractall(location)
-    dataset.close()
-    os.remove(dataset.filename)
+    Converts all the images in a folder from .heic to .jpg.
+    """
+    image_list = list(sorted(os.listdir(image_folder)))
+    for image_name in image_list:
+        os.system(f"heif-convert {image_folder + image_name} {image_folder+image_name[:-4]+'jpg'} -q 100")
 
 
-def generate_cell_data():
-    """Generate HDF5 files for fluorescent cell dataset."""
-    # download and extract dataset
-    get_and_unzip(
-        'http://www.robots.ox.ac.uk/~vgg/research/counting/cells.zip',
-        location='data/cells'
-    )
-    # create training and validation HDF5 files
-    train_h5, valid_h5 = create_hdf5('data/cell',
-                                     train_size=150,
-                                     valid_size=50,
-                                     img_size=(256, 256),
-                                     in_channels=3)
+def create_plate_data(image_label_folder="data/plates_labeled/", valid_size=12):
+    """
+    Creates the plate datasets (train + test) and saves them in the corresponding folder.
+    """
+    image_list = list(sorted(os.listdir(os.path.join(image_label_folder, "images"))))
+    os.makedirs(image_label_folder + "train/images/", exist_ok=True)
+    os.makedirs(image_label_folder + "train/labels/", exist_ok=True)
+    os.makedirs(image_label_folder + "test/images/", exist_ok=True)
+    os.makedirs(image_label_folder + "test/labels/", exist_ok=True)
 
-    # get the list of all samples
-    # dataset name convention: XXXcell.png (image) XXXdots.png (label)
-    image_list = glob(os.path.join('data/cells', '*cell.*'))
-    image_list.sort()
+    valid_list = random.choices(image_list, k=valid_size)
+    train_list = [im for im in image_list if im not in valid_list]
 
-    def fill_h5(h5, images):
-        """
-        Save images and labels in given HDF5 file.
-        Args:
-            h5: HDF5 file
-            images: the list of images paths
-        """
-        for i, img_path in enumerate(images):
-            # get label path
-            label_path = img_path.replace('cell.png', 'dots.png')
-            # get an image as numpy array
-            image = np.array(Image.open(img_path), dtype=np.float32) / 255
+    # Train data
+    for ii in range(len(train_list)):
+        old_image_path = os.path.join(image_label_folder + "images/", train_list[ii])
+        old_label_path = os.path.join(image_label_folder + "labels/", train_list[ii][:-4] + ".txt")
 
-            # convert a label image into a density map: dataset provides labels
-            # in the form on an image with red dots placed in objects position
+        new_image_path = os.path.join(image_label_folder + "train/images/", train_list[ii])
+        new_label_path = os.path.join(image_label_folder + "train/labels/", train_list[ii][:-4] + ".txt")
 
-            # load an RGB image
-            label = np.array(Image.open(label_path))
-            # make a one-channel label array with 100 in red dots positions
-            label = 100.0 * (label[:, :, 0] > 0)
-            # generate a density map by applying a Gaussian filter
-            label = gaussian_filter(label, sigma=(1, 1), order=0)
-            label = np.expand_dims(label, axis=-1)
+        os.system(f"cp {old_image_path} {new_image_path}")
+        os.system(f"cp {old_label_path} {new_label_path}")
 
-            # save data to HDF5 file
-            h5['images'][i] = image
-            h5['labels'][i] = label
+    # Test data
+    for ii in range(len(valid_list)):
+        old_image_path = os.path.join(image_label_folder + "images/", valid_list[ii])
+        old_label_path = os.path.join(image_label_folder + "labels/", valid_list[ii][:-4] + ".txt")
 
-    # use first 150 samples for training and the last 50 for validation
-    fill_h5(train_h5, image_list[:150])
-    fill_h5(valid_h5, image_list[150:])
+        new_image_path = os.path.join(image_label_folder + "test/images/", valid_list[ii])
+        new_label_path = os.path.join(image_label_folder + "test/labels/", valid_list[ii][:-4] + ".txt")
 
-    # close HDF5 files
-    train_h5.close()
-    valid_h5.close()
-
-    # cleanup
-    # shutil.rmtree('data/cells')
+        os.system(f"cp {old_image_path} {new_image_path}")
+        os.system(f"cp {old_label_path} {new_label_path}")
 
 
 def make_spots_label(path_csv, save_folder):
@@ -150,179 +105,6 @@ def resize_spot_label(label, img_size=(256, 256), value=100):
     label = np.zeros(img_size)
     label[x, y] = value
     return label
-
-
-def generate_phage_data():
-    """
-    Generates the h5 files for the phage colonies dataset.
-    """
-    dataset_name = "data/phage_colonies/"
-    spots_image_folder = "data/phage_spots/"
-    spots_label_folder = "data/phage_spots_labels/"
-    os.makedirs(dataset_name, exist_ok=True)
-
-    # Defining length of the train and valid dataset
-    nb_labeled = len(os.listdir(spots_label_folder)) - 1  # -1 for the CSV file in there
-    valid_size = 20
-    train_size = nb_labeled - valid_size
-    img_size = (256, 256)
-    label_list = os.listdir(spots_label_folder)
-    label_list.remove("labels.csv")
-
-    # create HDF5 files: [dataset_name]/(train | valid).h5
-    train_h5 = h5py.File(os.path.join(dataset_name, 'train.h5'), 'w')
-    valid_h5 = h5py.File(os.path.join(dataset_name, 'valid.h5'), 'w')
-    # add two HDF5 datasets (images and labels) for each HDF5 file
-    for h5, size in ((train_h5, train_size), (valid_h5, valid_size)):
-        h5.create_dataset('images', (size, *img_size, 3))
-        h5.create_dataset('labels', (size, *img_size, 1))
-
-    def fill_h5_spots(h5, labels):
-        """
-        Save images and labels in given HDF5 file.
-        Args:
-            h5: HDF5 file
-            images: the list of label images paths
-        """
-        for ii, label_name in enumerate(labels):  # Only images that have labels
-            image_name = label_name.replace("_labels", "")
-
-            image = Image.open(spots_image_folder + image_name)
-            image = image.resize(img_size)
-            image = np.array(image) / 255
-
-            label = Image.open(spots_label_folder + label_name)
-            label = resize_spot_label(label, img_size, 100)
-            # generate a density map by applying a Gaussian filter
-            label = gaussian_filter(label, sigma=(1, 1), order=0)
-            label = np.expand_dims(label, axis=-1)
-
-            # save data to HDF5 file
-            h5['images'][ii] = image
-            h5['labels'][ii] = label
-
-    # Split between train and validation
-    fill_h5_spots(train_h5, label_list[:train_size])
-    fill_h5_spots(valid_h5, label_list[train_size:])
-
-    train_h5.close()
-    valid_h5.close()
-
-
-def generate_plate_data():
-    """
-    Generates the h5 files for the phage colonies dataset.
-    """
-    dataset_name = "data/phage_plates/"
-    image_folder = "data/lab_raw_good/"
-    label_folder = "data/lab_raw_good_labels/"
-    os.makedirs(dataset_name, exist_ok=True)
-
-    # Shape of the orinial images
-    img_size = (4608, 3456)
-    box_size = (20, 4)  # at maximum 20 boxes per images
-    label_size = 20  # at maximum 20 labels per images, corresponding to the 20 boxes
-    image_list = list(sorted(os.listdir(image_folder)))
-    valid_size = 6
-    train_size = len(image_list) - valid_size
-    valid_list = random.choices(image_list, k=valid_size)
-    train_list = [im for im in image_list if im not in valid_list]
-
-    # create HDF5 files: [dataset_name]/(train | valid).h5
-    train_h5 = h5py.File(os.path.join(dataset_name, 'train.h5'), 'w')
-    valid_h5 = h5py.File(os.path.join(dataset_name, 'valid.h5'), 'w')
-    # add two HDF5 datasets (images and labels) for each HDF5 file
-    for h5, size in ((train_h5, train_size), (valid_h5, valid_size)):
-        h5.create_dataset('images', (size, *img_size, 3))
-        h5.create_dataset('boxes', (size, *box_size))
-        h5.create_dataset('labels', (size, label_size))
-
-    def fill_h5_plate(h5, images):
-        """
-        Save images and labels in given HDF5 file.
-        Args:
-            h5: HDF5 file
-            images: the list of label images paths
-        """
-        for ii, image_name in enumerate(images):
-            label_name = image_name.replace(".jpg", ".txt")  # images and label have same name up to extension
-
-            image = Image.open(image_folder + image_name)
-            image = image.transpose(Image.ROTATE_270)  # Because PIL consider longest side to be width
-            image = np.array(image) / 255
-
-            boxes, labels = boxes_from_label_file(label_folder + label_name, *img_size, max_length=label_size)
-
-            # save data to HDF5 file
-            h5['images'][ii] = image
-            h5['boxes'][ii] = np.array(boxes, dtype=np.float32)
-            h5['labels'][ii] = np.array(labels, dtype=np.int64)
-
-    # Split between train and validation
-    fill_h5_plate(train_h5, train_list)
-    fill_h5_plate(valid_h5, valid_list)
-
-    train_h5.close()
-    valid_h5.close()
-
-
-def inspect_plate_data(image_label_folder="data/plates_labeled/", start_idx=0):
-    """
-    Shows the plate images and respective labels in the folder. Use the start_idx argument to specify at which
-    image of the list you wish to start.
-    """
-    import utils
-    import matplotlib.pyplot as plt
-    img_size = (4608, 3456)
-
-    image_list = list(sorted(os.listdir(image_label_folder + "images/")))
-    labels_list = list(sorted(os.listdir(image_label_folder + "labels/")))
-    for image_name, label_name in zip(image_list[start_idx:], labels_list[start_idx:]):
-        print(f"Image : {image_name}")
-        image = utils.load_image_from_file(image_label_folder + "images/" + image_name, dtype="int")
-
-        boxes, labels = utils.boxes_and_labels_from_file(
-            image_label_folder + "labels/" + label_name, *img_size)
-
-        utils.plot_plate_data(image, boxes, labels)
-        plt.show()
-
-
-def create_plate_data(image_label_folder="data/plates_labeled/"):
-    """
-    Creates the plate datasets (train + test) saves them in the corresponding folder.
-    """
-    image_list = list(sorted(os.listdir(os.path.join(image_label_folder, "images"))))
-    os.makedirs(image_label_folder + "train/images/", exist_ok=True)
-    os.makedirs(image_label_folder + "train/labels/", exist_ok=True)
-    os.makedirs(image_label_folder + "test/images/", exist_ok=True)
-    os.makedirs(image_label_folder + "test/labels/", exist_ok=True)
-
-    valid_size = 12
-    valid_list = random.choices(image_list, k=valid_size)
-    train_list = [im for im in image_list if im not in valid_list]
-
-    # Train data
-    for ii in range(len(train_list)):
-        old_image_path = os.path.join(image_label_folder + "images/", train_list[ii])
-        old_label_path = os.path.join(image_label_folder + "labels/", train_list[ii][:-4] + ".txt")
-
-        new_image_path = os.path.join(image_label_folder + "train/images/", train_list[ii])
-        new_label_path = os.path.join(image_label_folder + "train/labels/", train_list[ii][:-4] + ".txt")
-
-        os.system(f"cp {old_image_path} {new_image_path}")
-        os.system(f"cp {old_label_path} {new_label_path}")
-
-    # Test data
-    for ii in range(len(valid_list)):
-        old_image_path = os.path.join(image_label_folder + "images/", valid_list[ii])
-        old_label_path = os.path.join(image_label_folder + "labels/", valid_list[ii][:-4] + ".txt")
-
-        new_image_path = os.path.join(image_label_folder + "test/images/", valid_list[ii])
-        new_label_path = os.path.join(image_label_folder + "test/labels/", valid_list[ii][:-4] + ".txt")
-
-        os.system(f"cp {old_image_path} {new_image_path}")
-        os.system(f"cp {old_label_path} {new_label_path}")
 
 
 def add_plate_data(folder_path, destination_folder):
@@ -444,18 +226,16 @@ def make_box_density(image_folder, label_folder, output_folder, spread_scaling=5
 
 
 if __name__ == '__main__':
-    # generate_cell_data()
-    # generate_phage_data()
-    # generate_plate_data()
-    # inspect_plate_data("data/plates_labeled/spot_labeling/")
+    # inspect_plate_data("data/plates_labeled/", start_idx=0)
+    convert_heic_to_jpg(image_folder="data/plates_raw/11-11-2021/heic/")
     # create_plate_data()
     # add_plate_data("data/plates_raw/square_10-11-2021/", "data/plates_raw/square_10-11-2021_oriented/")
     # make_spots_label("data/phage_spots_minimal/dot_labeling/test/labels/labels.csv",
     #                  "data/phage_spots_minimal/dot_labeling/test/labels/")
     # smooth_spots_label("data/phage_spots_subset/test/labels/",
     #                    "data/phage_spots_subset/test/density_kdtree/", mode="kdtree")
-    inspect_spot_data("data/phage_spots_minimal/box_labeling/train/images/",
-                      "data/phage_spots_minimal/box_labeling/train/density/")
+    # inspect_spot_data("data/phage_spots_minimal/box_labeling/train/images/",
+    #                   "data/phage_spots_minimal/box_labeling/train/density/")
     # density = make_box_density("data/phage_spots_minimal/box_labeling/test/images/",
     #                            "data/phage_spots_minimal/box_labeling/test/labels/",
     #                            "data/phage_spots_minimal/box_labeling/test/density/")
