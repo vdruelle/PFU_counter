@@ -9,29 +9,6 @@ import random
 import torch
 
 
-def inspect_plate_data(image_label_folder="data/plates_labeled/", start_idx=0):
-    """
-    Shows the plate images and respective labels in the folder. Use the start_idx argument to specify at which
-    image of the list you wish to start.
-    """
-    import utils
-    import matplotlib.pyplot as plt
-    img_size = (4608, 3456)
-
-    image_list = list(sorted(os.listdir(image_label_folder + "images/")))
-    labels_list = list(sorted(os.listdir(image_label_folder + "labels/")))
-    for image_name, label_name in zip(image_list[start_idx:], labels_list[start_idx:]):
-        print(f"Image : {image_name}")
-        image = utils.load_image_from_file(image_label_folder + "images/" + image_name, dtype="int")
-
-        boxes, labels = utils.boxes_and_labels_from_file(
-            image_label_folder + "labels/" + label_name, *img_size)
-
-        target = {"boxes": torch.tensor(boxes), "labels": torch.tensor(labels)}
-        utils.plot_plate_detector(torch.tensor(np.transpose(image, (2, 0, 1))), target)
-        plt.show()
-
-
 def convert_heic_to_jpg(image_folder):
     """
     Converts all the images in a folder from .heic to .jpg.
@@ -41,7 +18,7 @@ def convert_heic_to_jpg(image_folder):
         os.system(f"heif-convert {image_folder + image_name} {image_folder+image_name[:-4]+'jpg'} -q 100")
 
 
-def remove_orientation(folder_path, destination_folder):
+def fix_orientation(folder_path, destination_folder):
     """
     Process the image in the define folder and adds them to the destination_folder.
     """
@@ -54,6 +31,28 @@ def remove_orientation(folder_path, destination_folder):
         image = Image.open(destination_folder + image_name)
         image = image.transpose(Image.ROTATE_270)
         image.save(destination_folder + image_name)
+
+
+def inspect_plate_data(image_label_folder="data/plates_labeled/", start_idx=0):
+    """
+    Shows the plate images and respective labels in the folder. Use the start_idx argument to specify at which
+    image of the list you wish to start.
+    """
+    import utils
+    import matplotlib.pyplot as plt
+
+    image_list = list(sorted(os.listdir(image_label_folder + "images/")))
+    labels_list = list(sorted(os.listdir(image_label_folder + "labels/")))
+    for image_name, label_name in zip(image_list[start_idx:], labels_list[start_idx:]):
+        print(f"Image : {image_name}")
+        image = utils.load_image_from_file(image_label_folder + "images/" + image_name, dtype="int")
+
+        boxes, labels = utils.boxes_and_labels_from_file(
+            image_label_folder + "labels/" + label_name, image.shape[0], image.shape[1])
+
+        target = {"boxes": torch.tensor(boxes), "labels": torch.tensor(labels)}
+        utils.plot_plate_detector(torch.tensor(np.transpose(image, (2, 0, 1))), target)
+        plt.show()
 
 
 def create_plate_data(image_label_folder="data/plates_labeled/", valid_size=12):
@@ -226,9 +225,9 @@ def make_box_density(image_folder, label_folder, output_folder, spread_scaling=5
 
 
 if __name__ == '__main__':
-    # inspect_plate_data("data/plates_labeled/", start_idx=0)
+    inspect_plate_data("data/plates_labeled/", start_idx=0)
     # convert_heic_to_jpg(image_folder="data/plates_raw/11-11-2021/heic/")
-    # remove_orientation("data/plates_raw/11-11-2021/png/", "data/plates_raw/11-11-2021_oriented/")
+    # fix_orientation("data/plates_raw/11-11-2021/png/", "data/plates_raw/11-11-2021_oriented/")
     # create_plate_data()
     # add_plate_data("data/plates_raw/square_10-11-2021/", "data/plates_raw/square_10-11-2021_oriented/")
     # make_spots_label("data/phage_spots_minimal/dot_labeling/test/labels/labels.csv",
