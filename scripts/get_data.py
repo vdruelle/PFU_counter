@@ -41,6 +41,21 @@ def convert_heic_to_jpg(image_folder):
         os.system(f"heif-convert {image_folder + image_name} {image_folder+image_name[:-4]+'jpg'} -q 100")
 
 
+def remove_orientation(folder_path, destination_folder):
+    """
+    Process the image in the define folder and adds them to the destination_folder.
+    """
+    from PIL import Image
+    os.makedirs(destination_folder, exist_ok=True)
+    image_list = list(sorted(os.listdir(folder_path)))
+
+    for image_name in image_list:
+        os.system(f"exiftool -Orientation= {folder_path+image_name} -o {destination_folder+image_name}")
+        image = Image.open(destination_folder + image_name)
+        image = image.transpose(Image.ROTATE_270)
+        image.save(destination_folder + image_name)
+
+
 def create_plate_data(image_label_folder="data/plates_labeled/", valid_size=12):
     """
     Creates the plate datasets (train + test) and saves them in the corresponding folder.
@@ -105,21 +120,6 @@ def resize_spot_label(label, img_size=(256, 256), value=100):
     label = np.zeros(img_size)
     label[x, y] = value
     return label
-
-
-def add_plate_data(folder_path, destination_folder):
-    """
-    Process the image in the define folder and adds them to the destination_folder.
-    """
-    from PIL import Image
-    os.makedirs(destination_folder, exist_ok=True)
-    image_list = list(sorted(os.listdir(folder_path)))
-
-    for image_name in image_list:
-        os.system(f"exiftool -Orientation= {folder_path+image_name} -o {destination_folder+image_name}")
-        image = Image.open(destination_folder + image_name)
-        image = image.transpose(Image.ROTATE_270)
-        image.save(destination_folder + image_name)
 
 
 def kdtree_gaussian(gt):
@@ -227,7 +227,8 @@ def make_box_density(image_folder, label_folder, output_folder, spread_scaling=5
 
 if __name__ == '__main__':
     # inspect_plate_data("data/plates_labeled/", start_idx=0)
-    convert_heic_to_jpg(image_folder="data/plates_raw/11-11-2021/heic/")
+    # convert_heic_to_jpg(image_folder="data/plates_raw/11-11-2021/heic/")
+    # remove_orientation("data/plates_raw/11-11-2021/png/", "data/plates_raw/11-11-2021_oriented/")
     # create_plate_data()
     # add_plate_data("data/plates_raw/square_10-11-2021/", "data/plates_raw/square_10-11-2021_oriented/")
     # make_spots_label("data/phage_spots_minimal/dot_labeling/test/labels/labels.csv",
