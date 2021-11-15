@@ -138,7 +138,7 @@ def count_to_concentration(counts, row):
     return counts * 10**row
 
 
-def count_spots(detector_images, counter_save, scaling=1000):
+def count_spots_density(detector_images, counter_save, scaling=1000):
     """
     Uses the colony counting network to predict the count in each spot to count. Returns the
     detector_images dict with additional keys for the counts in the spot images.
@@ -168,6 +168,29 @@ def count_spots(detector_images, counter_save, scaling=1000):
     return detector_images
 
 
+def count_spots_box(detector_images, counter_save, score_threshold=0.1):
+    """
+    Uses the colony counting network to predict the count in each spot to count. Returns the
+    detector_images dict with additional keys for the counts in the spot images.
+    """
+    device = torch.device('cuda:0' if torch.cuda.is_available() else print("GPU not available"))
+    model = PlateDetector(num_classes=2, backbone="mobilenet", trainable_backbone_layers=None)
+    model.to(device)
+    model.load_state_dict(torch.load(counter_save))
+    model.eval()
+    with torch.no_grad():
+        for image_dict in detector_images["phage_spots"]:
+            if image_dict["to_count"]:
+                output = model(image_dict["image"].unsqueeze(0))[0]  # adding 1 dimension
+                image_dict["counts"] = output["scores"][output["scores"] > score_threshold].shape[0]
+
+    for image_dict in detector_images["phage_spots"]:
+        if image_dict["to_count"]:
+            image_dict["concentration"] = count_to_concentration(image_dict["counts"], image_dict["row"])
+
+    return detector_images
+
+
 def make_analysis_output(detector_images):
     """
     Computes the analysis output from the detector_images dictionary.
@@ -189,7 +212,7 @@ def make_analysis_output(detector_images):
 
 if __name__ == '__main__':
     plate_detector_save = "model_saves/Plate_detection.pt"
-    phage_counter_save = "model_saves/Counter_nonegative.pt"
+    phage_counter_save = "model_saves/Dot_counting_full.pt"
     # image_path = "data/plates_labeled/spot_labeling/images/20200204_115135.jpg"
     image_path = "data/plates_labeled/spot_labeling/images/20200204_115534.jpg"
     show = True
@@ -216,7 +239,7 @@ if __name__ == '__main__':
     detector_images = spot_selection(detector_images, columns, rows)
 
     # --- Feeding to the colony counter network ---
-    detector_images = count_spots(detector_images, phage_counter_save)
+    detector_images = count_spots_box(detector_images, phage_counter_save, 0.3)
 
     # --- Image feedback ---
     if show:
