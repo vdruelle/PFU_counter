@@ -92,30 +92,9 @@ def train_colony_detection():
     print("That's it!")
 
 
-def predict_plate(model_path, image_path):
-    """
-    Function to test the predictions of the network trained by train_plate_detection().
-    """
-    device = torch.device('cuda:0' if torch.cuda.is_available() else print("GPU not available"))
-
-    model = PlateDetector(num_classes=2, backbone="mobilenet")
-    model.to(device)
-    model.load_state_dict(torch.load(model_path))
-    model.eval()
-    image = utils.load_image_from_file(image_path)
-    image = torch.tensor(np.transpose(image, (2, 0, 1)), dtype=torch.float32)
-    image = image.to(device)
-
-    with torch.no_grad():
-        outputs = model([image])
-        output = outputs[0]
-        utils.plot_plate_detector(image, output)
-    plt.show()
-
-
 def predict_full_dataset(model_save_path, image_folder, output_label_folder, show=False):
     """
-    Uses a minimally trained model to predict the labels of the full dataset.
+    Uses a trained model to predict the labels of the full dataset.
     image_folder is the folder containing all the images from which to predict the labels.
     When show is True, just plots the results instead of saving them.
     """
@@ -164,5 +143,5 @@ def predict_full_dataset(model_save_path, image_folder, output_label_folder, sho
 
 if __name__ == '__main__':
     # train_colony_detection()
-    # predict_full_dataset("model_saves/Dot_counting_full.pt", "data/phage_spots/subset/test/images/",
-    #                      "data/phage_spots/subset/test/labels/", show=True)
+    predict_full_dataset("model_saves/Dot_counting_full.pt", "data/phage_spots/subset/test/images/",
+                         "data/phage_spots/subset/test/labels/", show=True)
