@@ -87,7 +87,8 @@ def plot_spot_boxes(image, prediction):
         if "scores" in prediction.keys():
             plt.text(box[0], box[1], round(prediction["scores"][ii].item(), 2),
                      color=colors[prediction["labels"][ii].item()])
-    plt.xlabel(f"Predicted: {prediction['scores'].shape[0]}")
+    if "scores" in prediction.keys():
+        plt.xlabel(f"Predicted: {prediction['scores'].shape[0]}")
 
 
 def plot_image_dot(image, label):
