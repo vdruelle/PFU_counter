@@ -213,8 +213,9 @@ def make_analysis_output(detector_images):
 if __name__ == '__main__':
     plate_detector_save = "model_saves/Plate_detection.pt"
     phage_counter_save = "model_saves/Dot_counting_full.pt"
-    # image_path = "data/plates_labeled/spot_labeling/images/20200204_115135.jpg"
-    image_path = "data/plates_labeled/spot_labeling/images/20200204_115534.jpg"
+    # image_path = "data/plates_labeled/images/20200204_115135.jpg"
+    # image_path = "data/plates_labeled/images/20200204_115534.jpg"
+    image_path = "data/plates_raw/11-11-2021_oriented/20211112_104047.jpg"
     show = True
 
     # --- Plate detection part ---
