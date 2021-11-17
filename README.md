@@ -25,7 +25,7 @@ This would be nice, but I don't think it is essential.
 
 ### Graphical result
 The idea is to go from the raw image:
-![Example of image](Image_example.png)
+![Example of image](Image_example.jpg)
 
 To the following results:
 ![Example of prediction](Prediction_example.png)
