@@ -24,6 +24,10 @@ Use some OCR to transform the image of the plate name and phage names into real 
 This would be nice, but I don't think it is essential.
 
 ### Graphical result
+The idea is to go from the raw image:
+![Example of image](Image_example.png)
+
+To the following results:
 ![Example of prediction](Prediction_example.png)
 
 ## Current state
