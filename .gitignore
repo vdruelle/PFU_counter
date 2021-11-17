@@ -130,4 +130,6 @@ dmypy.json
 data
 runs
 notebooks/test_save
-model_saves
+model_saves/*
+!model_saves/Colony_counter.pt
+!model_saves/Plate_detector.pt
