@@ -8,7 +8,6 @@ We input the raw picture of the agar plate and use a FasterRCNN network (mobilen
  - The phage names (written below the plate name). They correspond to the different columns.
  - All the spots on the plate. They are dilution droplets that the experimentalist put on the agar.
 
-![Example of prediction](Prediction_example.png)
 
 ### Plate element cleaning
 From the above results, a hand made script would separate the dilution spots into column (for each phages) and rows (for dilution level).
@@ -24,6 +23,8 @@ This is what would be given as an output of the pipeline for each phage (in a ta
 Use some OCR to transform the image of the plate name and phage names into real characters, so that we could put that into the table.
 This would be nice, but I don't think it is essential.
 
+### Graphical result
+![Example of prediction](Prediction_example.png)
 
 ## Current state
 
