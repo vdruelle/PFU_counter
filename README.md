@@ -27,16 +27,16 @@ This would be nice, but I don't think it is essential.
 
 ## Current state
 
-The notebooks are an old prototype. The files that correspond to newest iterations are in the `scripts/` folder.
+The files that correspond to newest iterations are in the `scripts/` folder.
 
 ### Plate_analyzer.py
-This is my first attempt at putting all the parts together. It did not work well because it was not very good at extracting the different spots to I changed the way I do that but haven't had time to update that.
+This is the code that puts all the parts together.
 
-### main.py
+### detector.py
 This is the file I use to create and train the plate element detection network. It's a FasterRCNN network with a mobilenet backbone.
 
-### main_counter.py
-This is the file I use to create and train the colony counting network. It is a custom made UNet for the moment. This might change in the future.
+### counter.py
+This is the file I use to create and train the colony counting network. It also uses a FasterRCNN network with a mobilenet backbone.
 
 ### Other files
 All the other files are either helper functions (dataset creation, dataset loading, image augmentation etc...) or old prototypes for parts of the pipeline.

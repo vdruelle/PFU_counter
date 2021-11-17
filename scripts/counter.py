@@ -142,5 +142,5 @@ def predict_full_dataset(model_save_path, image_folder, output_label_folder, sho
 
 if __name__ == '__main__':
     # train_colony_detection()
-    predict_full_dataset("model_saves/Colony_counter.pt", "data/phage_spots/to_label/images/",
-                         "data/phage_spots/to_label/labels/", show=True)
+    predict_full_dataset("model_saves/Colony_counter_newdata.pt", "data/phage_spots/subset/test/images/",
+                         "data/phage_spots/subset/test/labels/", show=True)

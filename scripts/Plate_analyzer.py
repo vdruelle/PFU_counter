@@ -211,7 +211,7 @@ def make_analysis_output(detector_images):
 
 
 if __name__ == '__main__':
-    plate_detector_save = "model_saves/Plate_detector2.pt"
+    plate_detector_save = "model_saves/Plate_detector.pt"
     phage_counter_save = "model_saves/Colony_counter.pt"
     # image_path = "data/plates_labeled/images/20200204_115135.jpg"
     # image_path = "data/plates_labeled/images/20200204_115534.jpg"
