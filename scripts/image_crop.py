@@ -77,7 +77,7 @@ def make_column_images():
 
         for idx, im in enumerate(cropped_list[2:]):
             im_name = "data/phage_columns/" + name + "_" + str(idx) + ".png"
-            im.save(im_name)
+            im.save(im_name, quality=100, subsampling=0)
 
 
 def crop_column_image(image_path, label_path):
@@ -124,7 +124,7 @@ def make_spot_images():
 
             for idx, im in enumerate(cropped_list):
                 im_name = "data/phage_spots/" + name + "_" + str(idx) + ".png"
-                im.save(im_name)
+                im.save(im_name, quality=100, subsampling=0)
 
 
 def crop_torch_image(image, box):
@@ -145,12 +145,12 @@ def fake_plate_analyzer_selection(image, boxes, labels):
 
     detection = {"labels": labels, "boxes": boxes}
     detector_images = plate_extraction(image, detection)
-    median_spot_size = np.median([[x.shape[1], x.shape[2]] for x in detector_images["phage_spots"]])
+    median_spot_size = np.median([[x["image"].shape[1], x["image"].shape[2]]
+                                  for x in detector_images["phage_spots"]])
     rows, columns = map_spots(detection, median_spot_size)
-    tmp = []
     for ii, spot in enumerate(detector_images["phage_spots"]):
-        tmp += [{"image": spot, "row": rows[ii].item(), "column": columns[ii].item()}]
-    detector_images["phage_spots"] = tmp
+        spot["row"] = rows[ii].item()
+        spot["column"] = columns[ii].item()
 
     # --- Selecting dilution spots to count ---
     detector_images = spot_selection(detector_images, columns, rows)
@@ -173,6 +173,7 @@ def spots_from_labels(data_folder):
     image_list = os.listdir(data_folder + "images/")
 
     for image_path in image_list:
+        print(f"Processing images {image_path}")
         image = utils.load_image_from_file(data_folder + "images/" + image_path, dtype="int")
         image = torch.tensor(np.transpose(image, (2, 0, 1)), dtype=torch.float32)
         labels_path = image_path.split(".")[0] + ".txt"
@@ -185,7 +186,8 @@ def spots_from_labels(data_folder):
         for ii in range(len(spot_images)):
             im = np.array(spot_images[ii]["image"]).astype(np.uint8)
             im = np.transpose(im, (1, 2, 0))
-            Image.fromarray(im).save(f"data/phage_spots/images/{image_path[:-4]}_{ii}.jpg")
+            Image.fromarray(im).save(
+                f"data/phage_spots/images/{image_path[:-4]}_{ii}.jpg", quality=100, subsampling=0)
 
 
 if __name__ == '__main__':
@@ -214,4 +216,4 @@ if __name__ == '__main__':
     # print("max shape")
     # print(m, mm)
 
-    spots_from_labels("data/plates_labeled/spot_labeling/")
+    spots_from_labels("data/plates_labeled/")

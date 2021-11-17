@@ -22,30 +22,31 @@ def train_plate_detection():
     Train a FasterRCNN to do plate element detection using the LabH5Dataset.
     """
     device = torch.device('cuda:0' if torch.cuda.is_available() else print("GPU not available"))
-    writer = SummaryWriter('runs/Plate_detector')
+    writer = SummaryWriter('runs/Plate_detector2')
 
-    dataset_folder = {"train": "data/plates_labeled/spot_labeling/train/",
-                      "test": "data/plates_labeled/spot_labeling/test/"}
+    dataset_folder = {"train": "data/plates_labeled/train/",
+                      "test": "data/plates_labeled/test/"}
     plate_dataset = {}
     for phase in ["train", "test"]:
         plate_dataset[phase] = BoxDataset(dataset_folder[phase],
-                                          PlateAlbumentation(0) if phase == "train" else None)
+                                          PlateAlbumentation(4) if phase == "train" else None)
 
     dataloader = {}
     for phase in ["train", "test"]:
         dataloader[phase] = torch.utils.data.DataLoader(
-            plate_dataset[phase], batch_size=2, num_workers=4, shuffle=(phase == "train"),
+            plate_dataset[phase], batch_size=4, num_workers=4, shuffle=(phase == "train"),
             collate_fn=collate_fn)
 
     # The model
     model = PlateDetector(num_classes=4, backbone="mobilenet", trainable_backbone_layers=None)
     model.to(device)
+    model.load_state_dict(torch.load("model_saves/Plate_detector.pt"))
 
     # Optimizer
-    optimizer = torch.optim.SGD(model.parameters(), lr=5e-3, momentum=0.9, weight_decay=5e-4)
-    lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=30, gamma=0.1)
+    optimizer = torch.optim.SGD(model.parameters(), lr=1e-3, momentum=0.9, weight_decay=5e-4)
+    lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=15, gamma=0.1)
 
-    num_epochs = 60
+    num_epochs = 20
     n_iter = 0
     for epoch in range(num_epochs):
         print(f"--- Epoch {epoch} ---")
@@ -89,7 +90,7 @@ def train_plate_detection():
 
         lr_scheduler.step()
 
-    torch.save(model.state_dict(), "model_saves/Plate_detection.pt")
+    torch.save(model.state_dict(), "model_saves/Plate_detector2.pt")
     print("That's it!")
 
 
@@ -122,7 +123,7 @@ def predict_full_dataset(model_save_path, image_folder, output_label_folder, sho
         with torch.no_grad():
             outputs = model([image])
         output = outputs[0]
-        outputs = utils.clean_plate_detector_output(outputs[0], 0.15, 0.3)
+        output = utils.clean_plate_detector_output(output, 0.15, 0.3)
         boxes, labels = output["boxes"], output["labels"]
 
         if not show:
@@ -188,5 +189,5 @@ def compute_validation_errors(predictions, targets):
 
 if __name__ == '__main__':
     # train_plate_detection()
-    predict_full_dataset("model_saves/Plate_detection.pt", "data/plates_raw/square_10-11-2021_oriented",
-                         "data/plates_raw/11-11-2021_oriented/labels/", show=True)
+    predict_full_dataset("model_saves/Plate_detector2.pt", "data/plates_labeled/test/images/",
+                         "data/plates_labeled/test/labels/", show=True)

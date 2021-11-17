@@ -58,52 +58,53 @@ class CounterAlbumentation(object):
 
 
 class PlateAlbumentation(object):
-    def __init__(self, mode=0):
+    def __init__(self, mode=0, proba=0.5):
         self.mode = mode
+        self.proba = proba
 
     def __call__(self, image, target):
         if self.mode == 0:
             transform = A.Compose(
                 [
-                    A.HorizontalFlip(p=0.5),
+                    A.HorizontalFlip(p=self.proba),
                     ToTensorV2()
                 ],
                 bbox_params=A.BboxParams(format='pascal_voc', label_fields=['class_labels']))
         if self.mode == 1:
             transform = A.Compose(
                 [
-                    A.HorizontalFlip(p=0.5),
-                    A.RandomBrightnessContrast(),
+                    A.HorizontalFlip(p=self.proba),
+                    A.RandomBrightnessContrast(p=self.proba),
                     ToTensorV2()
                 ],
                 bbox_params=A.BboxParams(format='pascal_voc', label_fields=['class_labels']))
         if self.mode == 2:
             transform = A.Compose(
                 [
-                    A.HorizontalFlip(p=0.5),
-                    A.ColorJitter(),
+                    A.HorizontalFlip(p=self.proba),
+                    A.ColorJitter(p=self.proba),
                     ToTensorV2()
                 ],
                 bbox_params=A.BboxParams(format='pascal_voc', label_fields=['class_labels']))
         if self.mode == 3:
             transform = A.Compose(
                 [
-                    A.HorizontalFlip(p=0.5),
-                    A.RandomBrightnessContrast(),
-                    A.OneOf([A.GaussianBlur(blur_limit=(3, 21), p=0.5),
-                             A.GaussNoise(0.1, p=0.5),
-                             A.MultiplicativeNoise([0.8, 1.2], elementwise=True, p=1)]),
+                    A.HorizontalFlip(p=self.proba),
+                    A.RandomBrightnessContrast(p=self.proba),
+                    A.OneOf([A.GaussianBlur(blur_limit=(3, 21), p=self.proba),
+                             A.GaussNoise(0.1, p=self.proba),
+                             A.MultiplicativeNoise([0.8, 1.2], elementwise=True, p=self.proba)]),
                     ToTensorV2()
                 ],
                 bbox_params=A.BboxParams(format='pascal_voc', label_fields=['class_labels']))
         if self.mode == 4:
             transform = A.Compose(
                 [
-                    A.HorizontalFlip(p=0.5),
-                    A.ColorJitter(),
-                    A.OneOf([A.GaussianBlur(blur_limit=(3, 21), p=0.5),
-                             A.GaussNoise(0.1, p=0.5),
-                             A.MultiplicativeNoise([0.8, 1.2], elementwise=True, p=1)]),
+                    A.HorizontalFlip(p=self.proba),
+                    A.ColorJitter(p=self.proba),
+                    A.OneOf([A.GaussianBlur(blur_limit=(3, 21), p=self.proba),
+                             A.GaussNoise(0.1, p=self.proba),
+                             A.MultiplicativeNoise([0.8, 1.2], elementwise=True, p=self.proba)]),
                     ToTensorV2()
                 ],
                 bbox_params=A.BboxParams(format='pascal_voc', label_fields=['class_labels']))
@@ -180,5 +181,5 @@ if __name__ == '__main__':
 
     image_path = "data/plates_labeled/images/20200204_115031.jpg"
     label_path = "data/plates_labeled/labels/20200204_115031.txt"
-    augmentation = PlateAlbumentation(0)
+    augmentation = PlateAlbumentation(4, proba=0.5)
     check_dataset_augmentation(image_path, label_path, augmentation)

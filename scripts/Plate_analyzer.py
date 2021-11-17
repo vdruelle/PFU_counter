@@ -4,9 +4,9 @@ the resulting dilutions
 """
 import torch
 import scipy
-import scipy.signal
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy.spatial import KDTree
 
 import utils
 from model import PlateDetector, UNet
@@ -211,11 +211,11 @@ def make_analysis_output(detector_images):
 
 
 if __name__ == '__main__':
-    plate_detector_save = "model_saves/Plate_detection.pt"
-    phage_counter_save = "model_saves/Dot_counting_full.pt"
+    plate_detector_save = "model_saves/Plate_detector2.pt"
+    phage_counter_save = "model_saves/Colony_counter.pt"
     # image_path = "data/plates_labeled/images/20200204_115135.jpg"
     # image_path = "data/plates_labeled/images/20200204_115534.jpg"
-    image_path = "data/plates_raw/11-11-2021_oriented/20211112_104047.jpg"
+    image_path = "data/plates_labeled/test/images/20211112_104047.jpg"
     show = True
 
     # --- Plate detection part ---
@@ -231,7 +231,6 @@ if __name__ == '__main__':
     median_spot_size = np.median([[x["image"].shape[1], x["image"].shape[2]]
                                   for x in detector_images["phage_spots"]])
     rows, columns = map_spots(detector_output_cleaned, median_spot_size)
-    tmp = []
     for ii, spot in enumerate(detector_images["phage_spots"]):
         spot["row"] = rows[ii].item()
         spot["column"] = columns[ii].item()

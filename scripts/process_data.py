@@ -30,7 +30,7 @@ def fix_orientation(folder_path, destination_folder):
         os.system(f"exiftool -Orientation= {folder_path+image_name} -o {destination_folder+image_name}")
         image = Image.open(destination_folder + image_name)
         image = image.transpose(Image.ROTATE_270)
-        image.save(destination_folder + image_name)
+        image.save(destination_folder + image_name, quality=100, subsampling=0)
 
 
 def inspect_plate_data(image_label_folder="data/plates_labeled/", start_idx=0):
@@ -104,7 +104,7 @@ def make_spots_label(path_csv, save_folder):
         label_image = np.zeros(shape=(tmp["w"].values[0], tmp["h"].values[0]))
         label_image[tmp["x"], tmp["y"]] = 255
         label_image = Image.fromarray(label_image.transpose()).convert("L")
-        label_image.save(save_folder + image_name.split(".")[0] + "_labels.png")
+        label_image.save(save_folder + image_name.split(".")[0] + "_labels.png", quality=100, subsampling=0)
 
 
 def resize_spot_label(label, img_size=(256, 256), value=100):

@@ -9,7 +9,6 @@ import sys
 from torch.utils.tensorboard import SummaryWriter
 
 from dataset import BoxDataset
-from utils import plot_image_dot, plot_counter
 from transforms import CounterBoxAlbumentation
 
 
@@ -22,7 +21,7 @@ def train_colony_detection():
     Train a FasterRCNN to do colony detection to determine concentration of a dilution spot.
     """
     device = torch.device('cuda:0' if torch.cuda.is_available() else print("GPU not available"))
-    writer = SummaryWriter('runs/Colony_detector_full')
+    writer = SummaryWriter('runs/Colony_counter')
 
     dataset_folder = {"train": "data/phage_spots/subset/train/",
                       "test": "data/phage_spots/subset/test/"}
@@ -42,9 +41,9 @@ def train_colony_detection():
 
     # Optimizer
     optimizer = torch.optim.SGD(model.parameters(), lr=5e-3, momentum=0.9, weight_decay=5e-4)
-    lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=40, gamma=0.1)
+    lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=30, gamma=0.1)
 
-    num_epochs = 80
+    num_epochs = 50
     n_iter = 0
     for epoch in range(num_epochs):
         print(f"--- Epoch {epoch} ---")
@@ -88,7 +87,7 @@ def train_colony_detection():
 
         lr_scheduler.step()
 
-    torch.save(model.state_dict(), "model_saves/Dot_counting_full.pt")
+    torch.save(model.state_dict(), "model_saves/Colony_counter.pt")
     print("That's it!")
 
 
@@ -143,5 +142,5 @@ def predict_full_dataset(model_save_path, image_folder, output_label_folder, sho
 
 if __name__ == '__main__':
     # train_colony_detection()
-    predict_full_dataset("model_saves/Dot_counting_full.pt", "data/phage_spots/subset/test/images/",
-                         "data/phage_spots/subset/test/labels/", show=True)
+    predict_full_dataset("model_saves/Colony_counter.pt", "data/phage_spots/to_label/images/",
+                         "data/phage_spots/to_label/labels/", show=True)
