@@ -4,6 +4,7 @@ import { Col, Container, Row } from 'reactstrap'
 
 import { ModelResult } from 'src/algorithms/runModel'
 import { Uploader } from 'src/components/Common/Uploader'
+import { Camera } from 'src/components/Camera/Camera'
 
 export async function importAndRunModel() {
   const { runModel } = await import('src/algorithms/runModel')
@@ -57,7 +58,7 @@ export function HomePage() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   const onUpload = useCallback((file: File) => {
-    void readImage(file, canvasRef?.current)
+    void readImage(file, canvasRef?.current) // eslint-disable-line no-void
   }, [])
 
   useEffect(() => {
@@ -71,6 +72,12 @@ export function HomePage() {
     <Container>
       <Row noGutters>
         <Col>
+          <Camera />
+        </Col>
+      </Row>
+
+      <Row noGutters>
+        <Col>
           <Uploader onUpload={onUpload} />
         </Col>
       </Row>
@@ -81,7 +88,7 @@ export function HomePage() {
 
       <Row noGutters>
         <Col>
-          <canvas id="canvas" ref={canvasRef} width={200} height={200} />
+          <canvas id="canvas" ref={canvasRef} width={200} height={200} style={{ backgroundColor: '#ffff0044' }} />
         </Col>
       </Row>
     </Container>
