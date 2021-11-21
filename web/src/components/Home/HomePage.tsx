@@ -6,6 +6,7 @@ import styled from 'styled-components'
 import { ModelResult } from 'src/algorithms/runModel'
 import { canvasDrawBox } from 'src/helpers/canvasDrawBox'
 import { useViewport } from 'src/helpers/useViewport'
+import { usePickFile } from 'src/helpers/usePickFile'
 import { Uploader } from 'src/components/Common/Uploader'
 import { Camera } from 'src/components/Camera/Camera'
 import { DeviceSelector } from 'src/components/Camera/DeviceSelector'
@@ -70,6 +71,7 @@ export function HomePage() {
   const viewport = useViewport(cameraContainer)
   const [result, setResult] = useState<ModelResult>()
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const { openFileSelector, file, clearFile } = usePickFile('image/*')
 
   const frame = useRef<ImageData>()
   const [image, setImage] = useState<ImageData | undefined>()
@@ -81,12 +83,19 @@ export function HomePage() {
   const close = useCallback(() => {
     setMode(Mode.Image)
     setImage(undefined)
-  }, [])
+    clearFile()
+  }, [clearFile])
 
   const onUpload = useCallback((file: File) => {
     setMode(Mode.Image)
     void readImageFile(file).then((image) => setImage(image)) // eslint-disable-line no-void
   }, [])
+
+  useEffect(() => {
+    if (file) {
+      onUpload(file)
+    }
+  }, [file, onUpload])
 
   useEffect(() => {
     if (!image || !canvasRef?.current) {
@@ -177,7 +186,7 @@ export function HomePage() {
               {!showCamera && !image && (
                 <MainControlsWrapper>
                   <MainControlsRow className="mx-auto my-auto">
-                    <MainButton>{'Choose image'}</MainButton>
+                    <MainButton onClick={openFileSelector}>{'Choose image'}</MainButton>
                     <MainButton onClick={toggleCamera}>{'Show camera'}</MainButton>
                   </MainControlsRow>
                 </MainControlsWrapper>
