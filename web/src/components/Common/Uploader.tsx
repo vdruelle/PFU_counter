@@ -91,11 +91,7 @@ export const UploadZoneWrapper = styled.div`
 export const UploadZone = styled.div<{ state: UploadZoneState }>`
   display: flex;
   height: 100%;
-  border-radius: 5px;
   border: ${(props) => getUploadZoneTheme(props, 'border')};
-  color: ${(props) => getUploadZoneTheme(props, 'color')};
-  background-color: ${(props) => getUploadZoneTheme(props, 'background')};
-  box-shadow: ${(props) => getUploadZoneTheme(props, 'box-shadow')};
 `
 
 export interface UploaderGenericProps {

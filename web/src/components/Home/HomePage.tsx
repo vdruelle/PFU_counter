@@ -8,8 +8,9 @@ import type { Model, ModelResult } from 'src/algorithms/runModel'
 import { canvasDrawBox } from 'src/helpers/canvasDrawBox'
 import { useViewport } from 'src/helpers/useViewport'
 import { usePickFile } from 'src/helpers/usePickFile'
-import { Uploader } from 'src/components/Common/Uploader'
 import { Camera } from 'src/components/Camera/Camera'
+import { CloseButton } from 'src/components/Common/CloseButton'
+import { Uploader } from 'src/components/Common/Uploader'
 import { DeviceSelector } from 'src/components/Camera/DeviceSelector'
 import { useVideoInputDevices } from 'src/components/Camera/useVideoInputDevices'
 import { readImageFile } from 'src/helpers/readImageFile'
@@ -186,7 +187,9 @@ export function HomePage() {
           </Col>
 
           <Col className="d-flex">
-            {(showCamera || showCanvas) && <Button className="flex-1 ml-auto" onClick={close} close />}
+            {(showCamera || showCanvas) && (
+              <CloseButton className="flex-1 ml-auto" onClick={close} color="transparent" />
+            )}
           </Col>
         </Row>
 
