@@ -15,9 +15,7 @@ export function DeviceSelector({ currentDevice, devices, onDeviceSelected }: Dev
 
   return (
     <Dropdown isOpen={isOpen} toggle={toggle}>
-      <DropdownToggle caret color="transparent">
-        {currentDevice?.label ?? ''}
-      </DropdownToggle>
+      <DropdownToggle caret>{currentDevice?.label ?? ''}</DropdownToggle>
       <DropdownMenu>
         {devices.map(({ deviceId, label }) => (
           <DropdownItem key={deviceId}>{label ?? deviceId}</DropdownItem>
