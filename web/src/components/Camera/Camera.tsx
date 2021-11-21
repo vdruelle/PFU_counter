@@ -1,76 +1,42 @@
-/* eslint-disable promise/always-return,@typescript-eslint/no-floating-promises,promise/catch-or-return */
-import React, { useCallback, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef } from 'react'
 
-import Webcam from 'react-webcam'
-import { Col, Row, Dropdown, DropdownItem, DropdownMenu, DropdownToggle } from 'reactstrap'
-import { resample } from 'src/helpers/resample'
+import styled from 'styled-components'
+import WebcamBase from 'react-webcam'
 
-export interface BoundingBox {
-  minX: number
-  maxX: number
-  minY: number
-  maxY: number
-}
+import { UseViewportResult } from 'src/helpers/useViewport'
 
-export function drawBoundingBox(boundingBox: BoundingBox, color: string, ctx: CanvasRenderingContext2D) {
-  ctx.rect(boundingBox.minX, boundingBox.minY, boundingBox.maxX - boundingBox.minX, boundingBox.maxY - boundingBox.minY)
-  ctx.strokeStyle = color
-  ctx.stroke()
-}
+const Webcam = styled(WebcamBase)`
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  background-color: #000000;
+  margin: 0;
+  padding: 0;
+`
 
-export interface DeviceSelectorProps {
+const WebcamOverlay = styled.canvas`
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  margin: 0;
+  padding: 0;
+`
+
+export interface CameraProps {
+  viewport: UseViewportResult
   currentDevice?: MediaDeviceInfo
-  devices: MediaDeviceInfo[]
-  onDeviceSelected(device: MediaDeviceInfo): void
+  onVideoFrame(imageData: ImageData): void
+  onVideoOverlay(overlayCtx: CanvasRenderingContext2D, width: number, height: number): void
 }
 
-export function DeviceSelector({ currentDevice, devices, onDeviceSelected }: DeviceSelectorProps) {
-  const [isOpen, setIsOpen] = useState(false)
-  const toggle = useCallback(() => {
-    setIsOpen((isOpen) => !isOpen)
-  }, [])
-
-  return (
-    <Dropdown isOpen={isOpen} toggle={toggle}>
-      <DropdownToggle caret>{currentDevice?.label ?? ''}</DropdownToggle>
-      <DropdownMenu>
-        {devices.map(({ deviceId, label }) => (
-          <DropdownItem key={deviceId}>{label ?? deviceId}</DropdownItem>
-        ))}
-      </DropdownMenu>
-    </Dropdown>
-  )
-}
-
-export function Camera() {
-  const camera = React.useRef<Webcam>(null)
-  const overlay = React.useRef<HTMLCanvasElement>(null)
-  const [currentDevice, setCurrentDevice] = React.useState<MediaDeviceInfo | undefined>(undefined)
-  const [devices, setDevices] = React.useState<MediaDeviceInfo[]>([])
-
-  React.useEffect(() => {
-    navigator.mediaDevices.enumerateDevices().then((mediaDevices: MediaDeviceInfo[]) => {
-      const devices = mediaDevices.filter(({ kind }) => kind === 'videoinput')
-      setDevices(devices)
-      if (devices.length > 0 && devices[0]) {
-        setCurrentDevice(devices[0])
-      }
-    })
-  }, [setDevices, setCurrentDevice])
-
-  const onDeviceSelected = useCallback(
-    (device: MediaDeviceInfo) => {
-      setCurrentDevice(device)
-    },
-    [setCurrentDevice],
-  )
-
-  const videoConstraints: MediaTrackConstraints = useMemo(
-    () => ({ deviceId: currentDevice?.deviceId }),
-    [currentDevice],
-  )
-
-  const rafRef = React.useRef<number>()
+export function Camera({ viewport, currentDevice, onVideoFrame, onVideoOverlay }: CameraProps) {
+  const camera = useRef<WebcamBase>(null)
+  const overlay = useRef<HTMLCanvasElement>(null)
+  const rafRef = useRef<number>()
 
   const animate = useCallback(() => {
     rafRef.current = requestAnimationFrame(animate)
@@ -87,7 +53,8 @@ export function Camera() {
       }
 
       const { width, height } = camera.current.video
-      let imgu8 = cameraCtx.getImageData(0, 0, width, height)
+      const imgu8 = cameraCtx.getImageData(0, 0, width, height)
+      onVideoFrame(imgu8)
 
       if (!overlay || !overlay.current) {
         return
@@ -98,18 +65,11 @@ export function Camera() {
         return
       }
 
-      const { width: overlayWidth, height: overlayHeight } = overlay.current
-      // const { videoWidth, videoHeight, width, height } = camera.current.video
-      // const { width: imgWidth, height: imgHeight } = imgu8
-
-      imgu8 = resample(imgu8, overlayWidth, overlayHeight)
-      overlayCtx.putImageData(imgu8, 0, 0)
-
-      drawBoundingBox({ minX: 0, maxX: 100, minY: 70, maxY: 100 }, '#aa00aa', overlayCtx)
+      onVideoOverlay(overlayCtx, overlay.current.width, overlay.current.height)
     }
-  }, [])
+  }, [onVideoFrame, onVideoOverlay])
 
-  React.useEffect(() => {
+  useEffect(() => {
     rafRef.current = requestAnimationFrame(animate)
     return () => {
       if (rafRef && rafRef.current) {
@@ -118,55 +78,31 @@ export function Camera() {
     }
   }, [animate])
 
+  const videoConstraints: MediaTrackConstraints = useMemo(
+    () => ({ deviceId: currentDevice?.deviceId }),
+    [currentDevice],
+  )
+
+  if (!currentDevice) {
+    return null
+  }
+
   animate()
 
   return (
-    <Row noGutters>
-      <Col>
-        <Row noGutters>
-          <Col>
-            <DeviceSelector currentDevice={currentDevice} devices={devices} onDeviceSelected={onDeviceSelected} />
-          </Col>
-        </Row>
-
-        <Row noGutters>
-          <Col>
-            {currentDevice && (
-              <Webcam
-                ref={camera}
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                }}
-                width={420}
-                height={320}
-                audio={false}
-                mirrored={false}
-                imageSmoothing={false}
-                videoConstraints={videoConstraints}
-              />
-            )}
-            <div
-              style={{ position: 'absolute', top: 0, left: 0, width: 320, height: 320, backgroundColor: '#ff000055' }}
-            />
-          </Col>
-
-          <Col>
-            <canvas
-              ref={overlay}
-              style={{
-                position: 'relative',
-                top: 0,
-                background: '#0000ff99',
-                width: 200,
-                height: 200,
-              }}
-              width={200}
-              height={200}
-            />
-          </Col>
-        </Row>
-      </Col>
-    </Row>
+    <>
+      <Webcam
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
+        ref={camera}
+        width={viewport.width}
+        height={viewport.height}
+        audio={false}
+        mirrored={false}
+        imageSmoothing={false}
+        videoConstraints={videoConstraints}
+      />
+      <WebcamOverlay ref={overlay} width={viewport.width} height={viewport.height} />
+    </>
   )
 }
