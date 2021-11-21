@@ -148,6 +148,8 @@ export function HomePage() {
     [frame],
   )
 
+  console.info({ result })
+
   return (
     <Uploader onUpload={onUpload}>
       <Container>
@@ -194,10 +196,6 @@ export function HomePage() {
             </Col>
           </Row>
         </CameraWrapper>
-
-        <Row noGutters>
-          <Col>{result && JSON.stringify(result, null, 2)}</Col>
-        </Row>
       </Container>
     </Uploader>
   )
