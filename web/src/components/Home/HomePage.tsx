@@ -1,9 +1,10 @@
+/* eslint-disable no-void,promise/always-return */
 import React, { useCallback, useEffect, useState, useRef } from 'react'
 
 import { Button, Col, Container as ContainerBase, Row } from 'reactstrap'
 import styled from 'styled-components'
 
-import { ModelResult } from 'src/algorithms/runModel'
+import type { Model, ModelResult } from 'src/algorithms/runModel'
 import { canvasDrawBox } from 'src/helpers/canvasDrawBox'
 import { useViewport } from 'src/helpers/useViewport'
 import { usePickFile } from 'src/helpers/usePickFile'
@@ -55,14 +56,29 @@ const MainButton = styled(Button)`
   margin: 5px;
 `
 
-export async function importAndRunModel() {
-  const { runModel } = await import('src/algorithms/runModel')
-  return runModel()
-}
+export async function importAndRunModel() {}
 
 export enum Mode {
   Image,
   Camera,
+}
+
+export function useModel() {
+  const model = useRef<Model>()
+
+  useEffect(() => {
+    void import('src/algorithms/runModel')
+      .then(({ Model }) => {
+        const newModel = new Model()
+        return newModel.init()
+      })
+      .then((initModel) => {
+        model.current = initModel
+      })
+    return () => model.current?.teardown()
+  }, [])
+
+  return model
 }
 
 export function HomePage() {
@@ -72,6 +88,8 @@ export function HomePage() {
   const [result, setResult] = useState<ModelResult>()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const { openFileSelector, file, clearFile } = usePickFile('image/*')
+
+  const model = useModel()
 
   const frame = useRef<ImageData>()
   const [image, setImage] = useState<ImageData | undefined>()
@@ -86,10 +104,23 @@ export function HomePage() {
     clearFile()
   }, [clearFile])
 
-  const onUpload = useCallback((file: File) => {
-    setMode(Mode.Image)
-    void readImageFile(file).then((image) => setImage(image)) // eslint-disable-line no-void
-  }, [])
+  const onUpload = useCallback(
+    (file: File) => {
+      setMode(Mode.Image)
+      void readImageFile(file)
+        .then((image) => {
+          setImage(image)
+          if (model && model.current) {
+            return model.current.run(image)
+          }
+          return undefined
+        })
+        .then((result) => {
+          setResult(result)
+        })
+    },
+    [model],
+  )
 
   useEffect(() => {
     if (file) {
@@ -116,37 +147,27 @@ export function HomePage() {
     canvasDrawBox({ top: 50, left: 30, width: 100, height: 400 }, '#00ff00', ctx)
   })
 
-  useEffect(() => {
-    // eslint-disable-next-line no-void
-    void importAndRunModel()
-      .then((result) => setResult(result))
-      .catch(console.error)
-  }, [])
-
   const onVideoFrame = useCallback((imageData: ImageData) => {
     frame.current = imageData
   }, [])
 
-  const onVideoOverlay = useCallback(
-    (overlayCtx: CanvasRenderingContext2D, width: number, height: number) => {
-      // const { width: overlayWidth, height: overlayHeight } = overlay.current
-      // const { videoWidth, videoHeight, width, height } = camera.current.video
-      // const { width: imgWidth, height: imgHeight } = frame
+  const onVideoOverlay = useCallback((overlayCtx: CanvasRenderingContext2D, width: number, height: number) => {
+    // const { width: overlayWidth, height: overlayHeight } = overlay.current
+    // const { videoWidth, videoHeight, width, height } = camera.current.video
+    // const { width: imgWidth, height: imgHeight } = frame
 
-      if (!frame?.current) {
-        return
-      }
+    // if (!frame?.current) {
+    //   return
+    // }
 
-      // const imgu8Resampled = resample(frame.current, 400, 600)
+    // const imgu8Resampled = resample(frame.current, 400, 600)
 
-      overlayCtx.clearRect(0, 0, width, height)
-      // overlayCtx.putImageData(imgu8Resampled, 0, 0)
+    overlayCtx.clearRect(0, 0, width, height)
+    // overlayCtx.putImageData(imgu8Resampled, 0, 0)
 
-      canvasDrawBox({ top: 122, left: 100, width: 400, height: 100 }, '#ff0000', overlayCtx)
-      canvasDrawBox({ top: 50, left: 30, width: 100, height: 400 }, '#00ff00', overlayCtx)
-    },
-    [frame],
-  )
+    canvasDrawBox({ top: 122, left: 100, width: 400, height: 100 }, '#ff0000', overlayCtx)
+    canvasDrawBox({ top: 50, left: 30, width: 100, height: 400 }, '#00ff00', overlayCtx)
+  }, [])
 
   console.info({ result })
 
