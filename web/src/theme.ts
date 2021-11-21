@@ -108,7 +108,7 @@ const uploadZoneBoxShadow = `1px 1px 3px 3px ${rgba(gray700, 0.25)}`
 export const uploadZone = {
   'background': {
     normal: basicColors.gray100,
-    accept: rgba(themeColors.success, 0.25),
+    accept: rgba(basicColors.gray700, 0.25),
     reject: rgba(themeColors.danger, 0.25),
     hover: basicColors.white,
   },
@@ -119,8 +119,8 @@ export const uploadZone = {
     hover: basicColors.gray900,
   },
   'border': {
-    normal: `4px ${rgba(basicColors.gray500, 0.75)} dashed`,
-    accept: `4px ${rgba(themeColors.success, 0.75)} dashed`,
+    normal: `4px ${rgba(basicColors.gray500, 0)} dashed`,
+    accept: `4px ${rgba(basicColors.gray700, 0.75)} dashed`,
     reject: `4px ${rgba(themeColors.danger, 0.75)} dashed`,
     hover: `4px ${rgba(basicColors.gray600, 0.75)} dashed`,
   },

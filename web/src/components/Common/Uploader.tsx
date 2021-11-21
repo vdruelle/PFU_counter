@@ -1,6 +1,5 @@
-import React, { PropsWithChildren, useMemo, useState } from 'react'
+import React, { PropsWithChildren, useState } from 'react'
 
-import { Button } from 'reactstrap'
 import styled, { DefaultTheme } from 'styled-components'
 import { FileRejection, useDropzone } from 'react-dropzone'
 
@@ -92,54 +91,11 @@ export const UploadZoneWrapper = styled.div`
 export const UploadZone = styled.div<{ state: UploadZoneState }>`
   display: flex;
   height: 100%;
-  cursor: pointer;
   border-radius: 5px;
   border: ${(props) => getUploadZoneTheme(props, 'border')};
   color: ${(props) => getUploadZoneTheme(props, 'color')};
   background-color: ${(props) => getUploadZoneTheme(props, 'background')};
   box-shadow: ${(props) => getUploadZoneTheme(props, 'box-shadow')};
-`
-
-export const UploadZoneInput = styled.input``
-
-export const UploadZoneLeft = styled.div`
-  display: flex;
-  flex: 1 1 40%;
-  margin: auto;
-  margin-right: 20px;
-`
-
-export const UploadZoneRight = styled.div`
-  display: flex;
-  flex: 1 0 60%;
-`
-
-export const FileIconsContainer = styled.div`
-  margin-left: auto;
-`
-
-export const UploadZoneTextContainer = styled.div`
-  display: block;
-  margin: auto;
-  margin-left: 20px;
-`
-
-export const UploadZoneText = styled.div`
-  font-size: 1.1rem;
-  text-align: center;
-`
-
-export const UploadZoneTextOr = styled.div`
-  margin-top: 10px;
-  font-size: 0.9rem;
-  font-weight: light;
-  text-align: center;
-`
-
-export const UploadZoneButton = styled(Button)`
-  margin-top: 10px;
-  min-width: 160px;
-  min-height: 50px;
 `
 
 export interface UploaderGenericProps {
@@ -149,7 +105,7 @@ export interface UploaderGenericProps {
 export function Uploader({ onUpload, children }: PropsWithChildren<UploaderGenericProps>) {
   const [errors, setErrors] = useState<string[]>([])
 
-  const { getRootProps, getInputProps, isDragActive, isDragAccept, isDragReject } = useDropzone({
+  const { getRootProps, isDragAccept, isDragReject } = useDropzone({
     onDrop: makeOnDrop({ onUpload, setErrors }),
     multiple: false,
   })
@@ -164,33 +120,9 @@ export function Uploader({ onUpload, children }: PropsWithChildren<UploaderGener
   if (isDragAccept) state = UploadZoneState.accept
   else if (isDragReject) state = UploadZoneState.reject
 
-  const normal = useMemo(
-    () => (
-      <UploadZoneTextContainer>
-        <UploadZoneText>{'Drag & Drop a file here'}</UploadZoneText>
-        <UploadZoneTextOr>{'or'}</UploadZoneTextOr>
-        <UploadZoneButton color="primary">{'Select a file'}</UploadZoneButton>
-      </UploadZoneTextContainer>
-    ),
-    [],
-  )
-
-  const active = useMemo(
-    () => (
-      <UploadZoneTextContainer>
-        <UploadZoneText>{'Drop it!'}</UploadZoneText>
-      </UploadZoneTextContainer>
-    ),
-    [],
-  )
-
   return (
     <UploadZoneWrapper {...getRootProps()}>
-      <UploadZoneInput type="file" {...getInputProps()} />
-      <UploadZone state={state}>
-        <UploadZoneLeft>{<FileIconsContainer>{children}</FileIconsContainer>}</UploadZoneLeft>
-        <UploadZoneRight>{isDragActive ? active : normal}</UploadZoneRight>
-      </UploadZone>
+      <UploadZone state={state}>{children}</UploadZone>
     </UploadZoneWrapper>
   )
 }
