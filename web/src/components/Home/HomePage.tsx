@@ -1,10 +1,16 @@
 import React, { useCallback, useEffect, useState, useRef } from 'react'
 
-import { Col, Container, Row } from 'reactstrap'
+import { Col, Container as ContainerBase, Row } from 'reactstrap'
+import styled from 'styled-components'
 
 import { ModelResult } from 'src/algorithms/runModel'
 import { Uploader } from 'src/components/Common/Uploader'
 import { Camera } from 'src/components/Camera/Camera'
+
+const Container = styled(ContainerBase)`
+  max-width: ${(props) => props.theme.md};
+  flex: 1 0 100%;
+`
 
 export async function importAndRunModel() {
   const { runModel } = await import('src/algorithms/runModel')
@@ -70,27 +76,23 @@ export function HomePage() {
 
   return (
     <Container>
-      <Row noGutters>
-        <Col>
-          <Camera />
-        </Col>
-      </Row>
+      <Uploader onUpload={onUpload}>
+        <Row noGutters>
+          <Col>
+            <Camera />
+          </Col>
+        </Row>
 
-      <Row noGutters>
-        <Col>
-          <Uploader onUpload={onUpload} />
-        </Col>
-      </Row>
+        <Row noGutters>
+          <Col>{result && JSON.stringify(result, null, 2)}</Col>
+        </Row>
 
-      <Row noGutters>
-        <Col>{result && JSON.stringify(result, null, 2)}</Col>
-      </Row>
-
-      <Row noGutters>
-        <Col>
-          <canvas id="canvas" ref={canvasRef} width={200} height={200} style={{ backgroundColor: '#ffff0044' }} />
-        </Col>
-      </Row>
+        <Row noGutters>
+          <Col>
+            <canvas id="canvas" ref={canvasRef} width={200} height={200} style={{ backgroundColor: '#ffff0044' }} />
+          </Col>
+        </Row>
+      </Uploader>
     </Container>
   )
 }
