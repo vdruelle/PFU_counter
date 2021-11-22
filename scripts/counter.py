@@ -140,7 +140,35 @@ def predict_full_dataset(model_save_path, image_folder, output_label_folder, sho
             plt.show()
 
 
+def export_to_onnx(model_path, output_path):
+    """
+    Exports the plate_analyzer network to the ONXX format.
+    """
+    model = PlateDetector(num_classes=2, backbone="mobilenet", trainable_backbone_layers=None)
+    # model.to(device)
+    model.load_state_dict(torch.load(model_path))
+    model.eval()
+
+    dummy_input = [torch.rand(3, 400, 400)]
+    input_names = ["Spot_image"]
+    output_names = ["Predicted_dict"]
+
+    torch.onnx.export(model, dummy_input, output_path, verbose=True,
+                      input_names=input_names, output_names=output_names, opset_version=11)
+
+
+def test_onnx(model_path):
+    "Tests if the onnx format save works."
+    import onnxruntime as ort
+    x = torch.rand(3, 400, 400).numpy()
+    ort_sess = ort.InferenceSession('model_saves/Colony_counter.onnx')
+    outputs = ort_sess.run(None, {'Spot_image': x})
+    print(outputs)
+
+
 if __name__ == '__main__':
     # train_colony_detection()
-    predict_full_dataset("model_saves/Colony_counter_newdata.pt", "data/phage_spots/subset/test/images/",
-                         "data/phage_spots/subset/test/labels/", show=True)
+    # predict_full_dataset("model_saves/Colony_counter_newdata.pt", "data/phage_spots/subset/test/images/",
+    #                      "data/phage_spots/subset/test/labels/", show=True)
+    export_to_onnx("model_saves/Colony_counter.pt", "model_saves/Colony_counter.onnx")
+    # test_onnx("model_saves/Colony_counter.onnx")

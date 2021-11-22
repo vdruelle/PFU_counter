@@ -187,7 +187,35 @@ def compute_validation_errors(predictions, targets):
     return error
 
 
+def export_to_onnx(model_path, output_path):
+    """
+    Exports the plate_analyzer network to the ONXX format.
+    """
+    model = PlateDetector(num_classes=4, backbone="mobilenet", trainable_backbone_layers=None)
+    # model.to(device)
+    model.load_state_dict(torch.load(model_path))
+    model.eval()
+
+    dummy_input = [torch.rand(3, 4608, 3456)]
+    input_names = ["Plate_image"]
+    output_names = ["Predicted_dict"]
+
+    torch.onnx.export(model, dummy_input, output_path, verbose=True,
+                      input_names=input_names, output_names=output_names, opset_version=11)
+
+
+def test_onnx(model_path):
+    "Tests if the onnx format save works."
+    import onnxruntime as ort
+    x = torch.rand(3, 4608, 3456).numpy()
+    ort_sess = ort.InferenceSession('model_saves/Plate_detector.onnx')
+    outputs = ort_sess.run(None, {'Plate_image': x})
+    print(outputs)
+
+
 if __name__ == '__main__':
     # train_plate_detection()
-    predict_full_dataset("model_saves/Plate_detector2.pt", "data/plates_labeled/test/images/",
-                         "data/plates_labeled/test/labels/", show=True)
+    # predict_full_dataset("model_saves/Plate_detector2.pt", "data/plates_labeled/test/images/",
+    #                      "data/plates_labeled/test/labels/", show=True)
+    # export_to_onnx("model_saves/Plate_detector.pt", "model_saves/Plate_detector.onxx")
+    test_onnx("model_saves/Plate_detector.onnx")
