@@ -14,7 +14,6 @@ import { ThemeProvider } from 'styled-components'
 import { MDXProvider } from '@mdx-js/react'
 
 import { theme } from 'src/theme'
-import { Layout } from 'src/components/Layout/Layout'
 
 import 'src/styles/global.scss'
 import { memoize } from 'lodash'
@@ -37,10 +36,8 @@ function MyApp({ Component, pageProps, router }: AppProps) {
       <ThemeProvider theme={theme}>
         <MDXProvider components={(components) => ({ ...components, ...mdxComponents })}>
           <QueryClientProvider client={queryClient}>
-            <Layout>
-              <Component {...pageProps} />
-              <ReactQueryDevtools initialIsOpen={false} />
-            </Layout>
+            <Component {...pageProps} />
+            <ReactQueryDevtools initialIsOpen={false} />
           </QueryClientProvider>
         </MDXProvider>
       </ThemeProvider>
