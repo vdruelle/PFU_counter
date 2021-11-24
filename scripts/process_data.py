@@ -225,9 +225,9 @@ def make_box_density(image_folder, label_folder, output_folder, spread_scaling=5
 
 
 if __name__ == '__main__':
-    inspect_plate_data("data/plates_labeled/", start_idx=0)
-    # convert_heic_to_jpg(image_folder="data/plates_raw/11-11-2021/heic/")
-    # fix_orientation("data/plates_raw/11-11-2021/png/", "data/plates_raw/11-11-2021_oriented/")
+    # inspect_plate_data("data/plates_labeled/", start_idx=0)
+    # convert_heic_to_jpg(image_folder="data/plates_raw/22-11-2021/heic/")
+    fix_orientation("data/plates_raw/22-11-2021/png/", "data/plates_raw/22-11-2021_oriented/")
     # create_plate_data()
     # add_plate_data("data/plates_raw/square_10-11-2021/", "data/plates_raw/square_10-11-2021_oriented/")
     # make_spots_label("data/phage_spots_minimal/dot_labeling/test/labels/labels.csv",
