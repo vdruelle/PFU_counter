@@ -170,7 +170,7 @@ export function HomePage() {
     canvasDrawBox({ top: 50, left: 30, width: 100, height: 400 }, '#00ff00', overlayCtx)
   }, [])
 
-  console.info({ result })
+  // console.info({ result })
 
   return (
     <Uploader onUpload={onUpload}>
