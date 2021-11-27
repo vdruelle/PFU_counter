@@ -22,10 +22,10 @@ def train_plate_detection():
     Train a FasterRCNN to do plate element detection using the LabH5Dataset.
     """
     device = torch.device('cuda:0' if torch.cuda.is_available() else print("GPU not available"))
-    writer = SummaryWriter('runs/test')
+    writer = SummaryWriter('runs/Plate_detector_new')
 
-    dataset_folder = {"train": "data/plates_labeled/train/",
-                      "test": "data/plates_labeled/test/"}
+    dataset_folder = {"train": "data/plates_labeled/train_full/",
+                      "test": "data/plates_labeled/test_full/"}
     plate_dataset = {}
     for phase in ["train", "test"]:
         plate_dataset[phase] = BoxDataset(dataset_folder[phase],
@@ -40,11 +40,11 @@ def train_plate_detection():
     # The model
     model = PlateDetector(num_classes=4, backbone="mobilenet", trainable_backbone_layers=None)
     model.to(device)
-    model.load_state_dict(torch.load("model_saves/Plate_detector.pt"))
+    # model.load_state_dict(torch.load("model_saves/Plate_detector.pt"))
 
     # Optimizer
     optimizer = torch.optim.SGD(model.parameters(), lr=1e-3, momentum=0.9, weight_decay=5e-4)
-    lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.1)
+    lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=25, gamma=0.1)
 
     num_epochs = 30
     n_iter = 0
@@ -91,7 +91,7 @@ def train_plate_detection():
 
         lr_scheduler.step()
 
-    # torch.save(model.state_dict(), "model_saves/Plate_detector_new.pt")
+    torch.save(model.state_dict(), "model_saves/Plate_detector.pt")
     print("That's it!")
 
 
@@ -185,11 +185,12 @@ def export_to_onnx(model_path, output_path):
                       input_names=input_names, output_names=output_names, opset_version=11)
 
 
-def test_onnx(model_path):
+def test_onnx(model_path, input_path):
     "Tests if the onnx format save works."
     import onnxruntime as ort
-    x = torch.rand(3, 4608, 3456).numpy()
-    ort_sess = ort.InferenceSession('model_saves/Plate_detector.onnx')
+    x = utils.load_image_from_file(input_path)
+    x = np.transpose(x, (2, 0, 1))
+    ort_sess = ort.InferenceSession(model_path)
     outputs = ort_sess.run(None, {'Plate_image': x})
     print(outputs)
 
@@ -199,5 +200,4 @@ if __name__ == '__main__':
     # predict_full_dataset("model_saves/Plate_detector_new.pt", "data/plates_labeled/to_label/images/",
     #                      "data/plates_labeled/to_label/labels/", show=False)
     # export_to_onnx("model_saves/Plate_detector.pt", "model_saves/Plate_detector.onxx")
-    # test_onnx("model_saves/Plate_detector.onnx")
-    train_test()
+    test_onnx("model_saves/Plate_detector.onnx", "data/plates_labeled/test/images/20211112_103710.jpg")
