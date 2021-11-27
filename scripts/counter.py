@@ -157,11 +157,16 @@ def export_to_onnx(model_path, output_path):
                       input_names=input_names, output_names=output_names, opset_version=11)
 
 
-def test_onnx(model_path):
+def test_onnx(model_path, input_path):
     "Tests if the onnx format save works."
     import onnxruntime as ort
-    x = torch.rand(3, 400, 400).numpy()
-    ort_sess = ort.InferenceSession('model_saves/Colony_counter.onnx')
+    from PIL import Image
+    im = Image.open(input_path)
+    im = im.resize((400, 400))
+    x = np.asarray(im, dtype=np.uint8)
+    x = x.astype(np.float32) / 255
+    x = np.transpose(x, (2, 0, 1))
+    ort_sess = ort.InferenceSession(model_path)
     outputs = ort_sess.run(None, {'Spot_image': x})
     print(outputs)
 
@@ -170,5 +175,5 @@ if __name__ == '__main__':
     # train_colony_detection()
     # predict_full_dataset("model_saves/Colony_counter_newdata.pt", "data/phage_spots/subset/test/images/",
     #                      "data/phage_spots/subset/test/labels/", show=True)
-    export_to_onnx("model_saves/Colony_counter.pt", "model_saves/Colony_counter.onnx")
-    # test_onnx("model_saves/Colony_counter.onnx")
+    # export_to_onnx("model_saves/Colony_counter.pt", "model_saves/Colony_counter.onnx")
+    test_onnx("model_saves/Colony_counter.onnx", "data/phage_spots/subset/test/images/20211007_105802_6.jpg")
