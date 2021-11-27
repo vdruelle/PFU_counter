@@ -25,10 +25,10 @@ This would be nice, but I don't think it is essential.
 
 ### Graphical result
 The idea is to go from the raw image:
-![Example of image](Image_example.jpg)
+![Example of image](data_web/Image_example.jpg)
 
 To the following results:
-![Example of prediction](Prediction_example.png)
+![Example of prediction](data_wed/Prediction_example.png)
 
 ## Current state
 
