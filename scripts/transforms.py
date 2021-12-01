@@ -61,7 +61,7 @@ class PlateAlbumentation(object):
     def __init__(self, mode=0, proba=0.5, max_size=1333):
         self.mode = mode
         self.proba = proba
-        self.maxsize = max_size
+        self.max_size = max_size
 
     def __call__(self, image, target):
         if self.mode == 0:
