@@ -22,20 +22,18 @@ def train_plate_detection():
     Train a FasterRCNN to do plate element detection using the LabH5Dataset.
     """
     device = torch.device('cuda:0' if torch.cuda.is_available() else print("GPU not available"))
-    writer = SummaryWriter('runs/test_raw')
+    writer = SummaryWriter('runs/test2')
 
-    dataset_folder = {"train": "data/plates_labeled/train/",
-                      "test": "data/plates_labeled/test/"}
-    plate_dataset = {}
-    for phase in ["train", "test"]:
-        plate_dataset[phase] = BoxDataset(dataset_folder[phase],
-                                          PlateAlbumentation(4) if phase == "train" else PlateAlbumentation(0))
+    dataset_folder = {"train": "data/plates_labeled/train_full/",
+                      "test": "data/plates_labeled/test_full/"}
+    plate_dataset = {"train": BoxDataset(dataset_folder["train"], PlateAlbumentation(5)),
+                     "test": BoxDataset(dataset_folder["test"], PlateAlbumentation(0))}
 
     dataloader = {}
-    for phase in ["train", "test"]:
-        dataloader[phase] = torch.utils.data.DataLoader(
-            plate_dataset[phase], batch_size=4, num_workers=4, shuffle=(phase == "train"),
-            collate_fn=collate_fn)
+    dataloader["train"] = torch.utils.data.DataLoader(
+        plate_dataset["train"], batch_size=4, num_workers=4, shuffle=True, collate_fn=collate_fn)
+    dataloader["test"] = torch.utils.data.DataLoader(
+        plate_dataset["test"], batch_size=2, num_workers=2, shuffle=False, collate_fn=collate_fn)
 
     # The model
     model = PlateDetector(num_classes=4, backbone="mobilenet", trainable_backbone_layers=None)
@@ -46,7 +44,7 @@ def train_plate_detection():
     optimizer = torch.optim.SGD(model.parameters(), lr=1e-3, momentum=0.9, weight_decay=5e-4)
     lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=20,  gamma=0.1)
 
-    num_epochs = 10
+    num_epochs = 25
     n_iter = 0
     for epoch in range(num_epochs):
         print(f"--- Epoch {epoch} ---")
@@ -57,7 +55,7 @@ def train_plate_detection():
             targets = [{key: t[key].to(device) for key in t.keys()} for t in targets]
 
             losses_dict = model(images, targets)
-            loss_sum = sum(loss for loss in losses_dict.values())
+            loss_sum = sum(loss for loss in losses_dict.values()) / dataloader["train"].batch_size
 
             # Writting to tensorboard
             for key in losses_dict.keys():
@@ -90,7 +88,7 @@ def train_plate_detection():
             writer.add_scalar("Total_loss/test", valid_loss, epoch)
 
             if n_iter > 10 and valid_loss < min_loss:
-                # torch.save(model.state_dict(), "model_saves/Plate_detector.pt")
+                torch.save(model.state_dict(), "model_saves/Plate_detector.pt")
                 min_loss = min(valid_loss, min_loss)
 
         lr_scheduler.step()
