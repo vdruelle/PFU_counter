@@ -76,15 +76,18 @@ def train_plate_detection():
             n_iter += 1
 
         # Test
-        model.eval()
+        # model.eval()
         with torch.no_grad():
             valid_loss = 0
             for images, targets in dataloader["test"]:
                 images = list(image.to(device) for image in images)
                 targets = [{key: t[key].to(device) for key in t.keys()} for t in targets]
 
-                predictions = model(images)
-                valid_loss += compute_validation_errors(predictions, targets)
+                losses_dict = model(images, targets)
+                valid_loss += sum(loss for loss in losses_dict.values())
+
+                # predictions = model(images)
+                # valid_loss += compute_validation_errors(predictions, targets)
 
             valid_loss /= len(plate_dataset["test"])
             writer.add_scalar("Total_loss/test", valid_loss, epoch)
@@ -181,7 +184,7 @@ def export_to_onnx(model_path, output_path):
     input_names = ["Plate_image"]
     output_names = ["Predicted_dict"]
 
-    torch.onnx.export(model, dummy_input, output_path, verbose=True,
+    torch.onnx.export(model, dummy_input, output_path, verbose=False,
                       input_names=input_names, output_names=output_names, opset_version=11)
 
 
@@ -200,4 +203,5 @@ if __name__ == '__main__':
     # predict_full_dataset("model_saves/Plate_detector_new.pt", "data/plates_labeled/to_label/images/",
     #                      "data/plates_labeled/to_label/labels/", show=False)
     # export_to_onnx("model_saves/Plate_detector.pt", "model_saves/Plate_detector.onxx")
-    test_onnx("model_saves/Plate_detector.onnx", "data/plates_labeled/test/images/20211112_103710.jpg")
+    export_to_onnx("model_saves/Plate_detector.pt", "test.onnx")
+    # test_onnx("model_saves/Plate_detector.onnx", "data/plates_labeled/test/images/20211112_103710.jpg")
