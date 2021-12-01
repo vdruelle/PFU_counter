@@ -22,19 +22,19 @@ def train_plate_detection():
     Train a FasterRCNN to do plate element detection using the LabH5Dataset.
     """
     device = torch.device('cuda:0' if torch.cuda.is_available() else print("GPU not available"))
-    writer = SummaryWriter('runs/Plate_detector')
+    writer = SummaryWriter('runs/test_raw')
 
     dataset_folder = {"train": "data/plates_labeled/train/",
                       "test": "data/plates_labeled/test/"}
     plate_dataset = {}
     for phase in ["train", "test"]:
         plate_dataset[phase] = BoxDataset(dataset_folder[phase],
-                                          PlateAlbumentation(4) if phase == "train" else None)
+                                          PlateAlbumentation(4) if phase == "train" else PlateAlbumentation(0))
 
     dataloader = {}
     for phase in ["train", "test"]:
         dataloader[phase] = torch.utils.data.DataLoader(
-            plate_dataset[phase], batch_size=4, num_workers=3, shuffle=(phase == "train"),
+            plate_dataset[phase], batch_size=4, num_workers=4, shuffle=(phase == "train"),
             collate_fn=collate_fn)
 
     # The model
@@ -46,7 +46,7 @@ def train_plate_detection():
     optimizer = torch.optim.SGD(model.parameters(), lr=1e-3, momentum=0.9, weight_decay=5e-4)
     lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=20,  gamma=0.1)
 
-    num_epochs = 20
+    num_epochs = 10
     n_iter = 0
     for epoch in range(num_epochs):
         print(f"--- Epoch {epoch} ---")
@@ -76,7 +76,6 @@ def train_plate_detection():
             n_iter += 1
 
         # Test
-        # model.eval()
         min_loss = 1e10
         with torch.no_grad():
             valid_loss = 0
@@ -87,14 +86,11 @@ def train_plate_detection():
                 losses_dict = model(images, targets)
                 valid_loss += sum(loss for loss in losses_dict.values())
 
-                # predictions = model(images)
-                # valid_loss += compute_validation_errors(predictions, targets)
-
             valid_loss /= len(plate_dataset["test"])
             writer.add_scalar("Total_loss/test", valid_loss, epoch)
 
             if n_iter > 10 and valid_loss < min_loss:
-                torch.save(model.state_dict(), "model_saves/Plate_detector.pt")
+                # torch.save(model.state_dict(), "model_saves/Plate_detector.pt")
                 min_loss = min(valid_loss, min_loss)
 
         lr_scheduler.step()
@@ -203,8 +199,8 @@ def test_onnx(model_path, input_path):
 
 
 if __name__ == '__main__':
-    # train_plate_detection()
-    # predict_full_dataset("model_saves/Plate_detector_new.pt", "data/plates_labeled/test/images/",
+    train_plate_detection()
+    # predict_full_dataset("model_saves/Plate_detector.pt", "data/plates_labeled/test/images/",
     #                      "data/plates_labeled/test/labels/", show=True)
     # export_to_onnx("model_saves/Plate_detector.pt", "model_saves/Plate_detector.onxx")
     # export_to_onnx("model_saves/Plate_detector.pt", "test.onnx")
