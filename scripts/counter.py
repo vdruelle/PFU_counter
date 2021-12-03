@@ -73,21 +73,24 @@ def train_colony_detection():
             n_iter += 1
 
         # Test
+        min_loss = 1e10
         with torch.no_grad():
-            valid_loss = 0
+            valid_loss = []
             for images, targets in dataloader["test"]:
                 images = list(image.to(device) for image in images)
                 targets = [{key: t[key].to(device) for key in t.keys()} for t in targets]
 
                 losses_dict = model(images, targets)
-                valid_loss += sum(loss for loss in losses_dict.values())
+                valid_loss += [sum(loss for loss in losses_dict.values()).item()]
 
-            valid_loss /= len(plate_dataset["test"])
+            valid_loss = np.mean(valid_loss)
             writer.add_scalar("Total_loss/test", valid_loss, epoch)
 
-        lr_scheduler.step()
+            if epoch > 10 and valid_loss < min_loss:
+                torch.save(model.state_dict(), "model_saves/Colony_counter_new.pt")
+                min_loss = min(valid_loss, min_loss)
 
-    torch.save(model.state_dict(), "model_saves/Colony_counter.pt")
+        lr_scheduler.step()
     print("That's it!")
 
 
@@ -176,4 +179,4 @@ if __name__ == '__main__':
     # predict_full_dataset("model_saves/Colony_counter_newdata.pt", "data/phage_spots/subset/test/images/",
     #                      "data/phage_spots/subset/test/labels/", show=True)
     # export_to_onnx("model_saves/Colony_counter.pt", "model_saves/Colony_counter.onnx")
-    test_onnx("model_saves/Colony_counter.onnx", "data/phage_spots/subset/test/images/20211007_105802_6.jpg")
+    # test_onnx("model_saves/Colony_counter.onnx", "data/phage_spots/subset/test/images/20211007_105802_6.jpg")

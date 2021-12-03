@@ -22,10 +22,10 @@ def train_plate_detection():
     Train a FasterRCNN to do plate element detection using the LabH5Dataset.
     """
     device = torch.device('cuda:0' if torch.cuda.is_available() else print("GPU not available"))
-    writer = SummaryWriter('runs/test2')
+    writer = SummaryWriter('runs/PlateDetector')
 
-    dataset_folder = {"train": "data/plates_labeled/train_full/",
-                      "test": "data/plates_labeled/test_full/"}
+    dataset_folder = {"train": "data/plates_labeled/train/",
+                      "test": "data/plates_labeled/test/"}
     plate_dataset = {"train": BoxDataset(dataset_folder["train"], PlateAlbumentation(5)),
                      "test": BoxDataset(dataset_folder["test"], PlateAlbumentation(0))}
 
@@ -44,7 +44,7 @@ def train_plate_detection():
     optimizer = torch.optim.SGD(model.parameters(), lr=1e-3, momentum=0.9, weight_decay=5e-4)
     lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=20,  gamma=0.1)
 
-    num_epochs = 25
+    num_epochs = 35
     n_iter = 0
     for epoch in range(num_epochs):
         print(f"--- Epoch {epoch} ---")
@@ -55,7 +55,7 @@ def train_plate_detection():
             targets = [{key: t[key].to(device) for key in t.keys()} for t in targets]
 
             losses_dict = model(images, targets)
-            loss_sum = sum(loss for loss in losses_dict.values()) / dataloader["train"].batch_size
+            loss_sum = sum(loss for loss in losses_dict.values())
 
             # Writting to tensorboard
             for key in losses_dict.keys():
@@ -76,19 +76,19 @@ def train_plate_detection():
         # Test
         min_loss = 1e10
         with torch.no_grad():
-            valid_loss = 0
+            valid_loss = []
             for images, targets in dataloader["test"]:
                 images = list(image.to(device) for image in images)
                 targets = [{key: t[key].to(device) for key in t.keys()} for t in targets]
 
                 losses_dict = model(images, targets)
-                valid_loss += sum(loss for loss in losses_dict.values())
+                valid_loss += [sum(loss for loss in losses_dict.values()).item()]
 
-            valid_loss /= len(plate_dataset["test"])
+            valid_loss = np.mean(valid_loss)
             writer.add_scalar("Total_loss/test", valid_loss, epoch)
 
-            if n_iter > 10 and valid_loss < min_loss:
-                torch.save(model.state_dict(), "model_saves/Plate_detector.pt")
+            if epoch > 10 and valid_loss < min_loss:
+                # torch.save(model.state_dict(), "model_saves/Plate_detector.pt")
                 min_loss = min(valid_loss, min_loss)
 
         lr_scheduler.step()
@@ -197,9 +197,9 @@ def test_onnx(model_path, input_path):
 
 
 if __name__ == '__main__':
-    train_plate_detection()
-    # predict_full_dataset("model_saves/Plate_detector.pt", "data/plates_labeled/test/images/",
-    #                      "data/plates_labeled/test/labels/", show=True)
+    # train_plate_detection()
+    predict_full_dataset("model_saves/Plate_detector.pt", "data/plates_labeled/test/images/",
+                         "data/plates_labeled/test/labels/", show=True)
     # export_to_onnx("model_saves/Plate_detector.pt", "model_saves/Plate_detector.onxx")
     # export_to_onnx("model_saves/Plate_detector.pt", "test.onnx")
     # test_onnx("model_saves/Plate_detector.onnx", "data/plates_labeled/test/images/20211112_103710.jpg")
