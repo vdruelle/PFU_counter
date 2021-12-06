@@ -198,8 +198,7 @@ def test_onnx(model_path, input_path):
 
 if __name__ == '__main__':
     # train_plate_detection()
-    predict_full_dataset("model_saves/Plate_detector.pt", "data/plates_labeled/test/images/",
-                         "data/plates_labeled/test/labels/", show=True)
+    # predict_full_dataset("model_saves/Plate_detector.pt", "data/plates_labeled/test/images/",
+    #                      "data/plates_labeled/test/labels/", show=True)
     # export_to_onnx("model_saves/Plate_detector.pt", "model_saves/Plate_detector.onxx")
-    # export_to_onnx("model_saves/Plate_detector.pt", "test.onnx")
-    # test_onnx("model_saves/Plate_detector.onnx", "data/plates_labeled/test/images/20211112_103710.jpg")
+    test_onnx("model_saves/Plate_detector.onnx", "data/plates_labeled/test/images/20211112_103710.jpg")

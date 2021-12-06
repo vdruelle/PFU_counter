@@ -52,9 +52,11 @@ def plate_extraction(image, detection):
         boxes += [box.cpu().tolist()]
 
     idx = torch.where(detection["labels"] == 1)[0]
-    detector_images["plate_name"] = {"image": sub_images[idx], "bbox": boxes[idx]}
+    if idx.nelement() != 0:
+        detector_images["plate_name"] = {"image": sub_images[idx], "bbox": boxes[idx]}
     idx = torch.where(detection["labels"] == 2)[0]
-    detector_images["phage_names"] = {"image": sub_images[idx], "bbox": boxes[idx]}
+    if idx.nelement() != 0:
+        detector_images["phage_names"] = {"image": sub_images[idx], "bbox": boxes[idx]}
     detector_images["phage_spots"] = []
 
     for ii in torch.where(detection["labels"] == 3)[0].tolist():

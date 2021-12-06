@@ -40,10 +40,10 @@ def train_colony_detection():
     model.to(device)
 
     # Optimizer
-    optimizer = torch.optim.SGD(model.parameters(), lr=5e-3, momentum=0.9, weight_decay=5e-4)
+    optimizer = torch.optim.SGD(model.parameters(), lr=1e-3, momentum=0.9, weight_decay=5e-4)
     lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=30, gamma=0.1)
 
-    num_epochs = 50
+    num_epochs = 30
     n_iter = 0
     for epoch in range(num_epochs):
         print(f"--- Epoch {epoch} ---")
@@ -87,7 +87,7 @@ def train_colony_detection():
             writer.add_scalar("Total_loss/test", valid_loss, epoch)
 
             if epoch > 10 and valid_loss < min_loss:
-                torch.save(model.state_dict(), "model_saves/Colony_counter_new.pt")
+                torch.save(model.state_dict(), "model_saves/Colony_counter.pt")
                 min_loss = min(valid_loss, min_loss)
 
         lr_scheduler.step()
@@ -176,7 +176,7 @@ def test_onnx(model_path, input_path):
 
 if __name__ == '__main__':
     # train_colony_detection()
-    # predict_full_dataset("model_saves/Colony_counter_newdata.pt", "data/phage_spots/subset/test/images/",
-    #                      "data/phage_spots/subset/test/labels/", show=True)
+    predict_full_dataset("model_saves/Colony_counter_newdata.pt", "data/phage_spots/subset/test/images/",
+                         "data/phage_spots/subset/test/labels/", show=True)
     # export_to_onnx("model_saves/Colony_counter.pt", "model_saves/Colony_counter.onnx")
     # test_onnx("model_saves/Colony_counter.onnx", "data/phage_spots/subset/test/images/20211007_105802_6.jpg")
