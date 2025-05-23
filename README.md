@@ -28,7 +28,7 @@ The idea is to go from the raw image:
 ![Example of image](data_web/Image_example.jpg)
 
 To the following results:
-![Example of prediction](data_wed/Prediction_example.png)
+![Example of prediction](data_web/Prediction_example.png)
 
 ## Current state
 
