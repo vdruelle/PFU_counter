@@ -29,6 +29,11 @@ The idea is to go from the raw image:
 
 To the following results:
 ![Example of prediction](data_web/Prediction_example.png)
+The different colors correspond to different "objects":
+- the name of the plate
+- the name of the samples (columns)
+- the dilution that can be counted
+- the dilutions that can't be counted
 
 ## Current state
 
